@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MIC, saveCall, type Line } from "./audio";
+import { MIC, saveCall, startTone, type Line } from "./audio";
 
 export type AiStatus = "idle" | "connecting" | "live" | "ended" | "error";
 
@@ -24,6 +24,7 @@ export function useAiTrojan(opts: Opts) {
   const [lines, setLines] = useState<Line[]>([]);
   const [speaking, setSpeaking] = useState<"student" | "ai" | null>(null);
   const [toolBusy, setToolBusy] = useState<string | null>(null);
+  const stopThinkingRef = useRef<(() => void) | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [maxSeconds, setMaxSeconds] = useState(300);
   const [micMuted, setMicMuted] = useState(false);
@@ -113,6 +114,7 @@ export function useAiTrojan(opts: Opts) {
   const hangUp = useCallback(
     (reason = "hangup") => {
       if (statusRef.current === "ended" || statusRef.current === "idle") return;
+      stopThinkingRef.current?.();
       teardown();
       setStat("ended");
       setSpeaking(null);
@@ -158,6 +160,16 @@ export function useAiTrojan(opts: Opts) {
       return;
     }
     setToolBusy(name === "lookup_usc" ? "Checking USC's official pages…" : "Leaving it for a real Trojan…");
+    // Lookups take ~5-7 s. After the spoken filler line, a soft blip fills the dead air until the answer arrives.
+    let stopThinking: (() => void) | null = null;
+    const thinkingTimer = setTimeout(() => {
+      if (statusRef.current === "live") stopThinking = startTone("thinking");
+    }, 1800);
+    stopThinkingRef.current = () => {
+      clearTimeout(thinkingTimer);
+      stopThinking?.();
+      stopThinkingRef.current = null;
+    };
     const t0 = performance.now();
     let output: unknown = { error: "lookup failed" };
     try {
@@ -181,6 +193,7 @@ export function useAiTrojan(opts: Opts) {
     } catch (e) {
       console.error("[ai-trojan] tool", e);
     }
+    stopThinkingRef.current?.();
     setToolBusy(null);
     const p = pending.current.get(callId);
     if (p) p.output = output;

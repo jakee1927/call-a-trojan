@@ -27,12 +27,14 @@ export function unlockAudio() {
  *  - "ringback": what the caller hears (US 440+480 Hz, 2s on / 4s off)
  *  - "ringtone": what the Trojan's phone page plays on an incoming call (brighter, 1s on / 1s off)
  */
-export function startTone(kind: "ringback" | "ringtone"): () => void {
+/** ringback: what the caller hears while the phone rings. ringtone: incoming call. thinking: soft blip while the AI looks something up. */
+export function startTone(kind: "ringback" | "ringtone" | "thinking"): () => void {
   let stopped = false;
   let osc: OscillatorNode[] = [];
   let gain: GainNode | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const [f1, f2, on, off, vol] = kind === "ringback" ? [440, 480, 2000, 4000, 0.08] : [880, 1320, 900, 900, 0.18];
+  const [f1, f2, on, off, vol] =
+    kind === "ringback" ? [440, 480, 2000, 4000, 0.08] : kind === "thinking" ? [660, 990, 90, 1300, 0.025] : [880, 1320, 900, 900, 0.18];
   const burst = () => {
     if (stopped) return;
     try {
