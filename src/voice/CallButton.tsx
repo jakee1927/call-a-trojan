@@ -9,6 +9,18 @@ type Props = {
   prefill?: string;
 };
 
+/** ?call= and ?stage= are remembered on this browser (see /call/stage), so they survive ask → answer card → Call navigation. */
+function demoParam(k: "call" | "stage"): string | null {
+  const v = new URLSearchParams(window.location.search).get(k);
+  try {
+    if (v === "auto" || v === "0") localStorage.removeItem(`ct_${k}`);
+    else if (v) localStorage.setItem(`ct_${k}`, v);
+    return v && v !== "auto" && v !== "0" ? v : localStorage.getItem(`ct_${k}`);
+  } catch {
+    return v;
+  }
+}
+
 type Which = { mode: "human"; helper: { name: string } } | { mode: "ai" };
 
 /**
@@ -25,8 +37,9 @@ export function CallButton(props: Props): JSX.Element | null {
     const q = new URLSearchParams();
     if (props.questionId) q.set("questionId", props.questionId);
     if (props.handoffId) q.set("handoffId", props.handoffId);
-    const force = new URLSearchParams(window.location.search).get("call");
+    const force = demoParam("call");
     if (force) q.set("call", force);
+    demoParam("stage");
     fetch(`/api/voice/which?${q}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => j && setWhich(j))
@@ -36,14 +49,13 @@ export function CallButton(props: Props): JSX.Element | null {
   if (!enabled) return null;
 
   const go = () => {
-    const here = new URLSearchParams(window.location.search);
     const q = new URLSearchParams();
     if (props.questionId) q.set("questionId", props.questionId);
     if (props.handoffId) q.set("handoffId", props.handoffId);
     if (props.audience) q.set("audience", props.audience);
     if (props.prefill && !props.questionId) q.set("prefill", props.prefill.slice(0, 400));
     for (const k of ["call", "stage"]) {
-      const v = here.get(k);
+      const v = demoParam(k as "call" | "stage");
       if (v) q.set(k, v);
     }
     router.push(`/call?${q}`);
