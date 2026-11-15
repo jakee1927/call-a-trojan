@@ -86,6 +86,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
   const aiSpeaking = () => responding || (sawBufferEvents ? bufferPlaying : Date.now() < aiQuietAt);
   /** The caller turn being heard: did it start over the AI's speech, and how long was it? */
   let speechOverlapped = false;
+  let speechDuringLookup = false; // it started while a lookup was running: the lookup's answer covers it
   let speechStartMs = 0;
   let speechLenMs = 0;
   let speechEndedAt = 0; // wall-clock time the caller actually stopped talking
@@ -232,6 +233,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       // --- the caller's side ---
       case "input_audio_buffer.speech_started":
         speechOverlapped = aiSpeaking();
+        speechDuringLookup = pending.size > 0;
         speechStartMs = Number(ev.audio_start_ms ?? 0);
         break;
       case "input_audio_buffer.speech_stopped":
@@ -246,6 +248,8 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
           dropTurn(id);
           break;
         }
+        // Said while a lookup was running: no separate reply, the lookup's answer follows and has heard it.
+        if (speechDuringLookup) break;
         if (speechLenMs >= 1200) respondToCaller();
         // A short blip may be a cough or line noise: wait briefly for its transcript before answering.
         else awaiting.set(id, setTimeout(() => (awaiting.delete(id), respondToCaller()), 1200));
