@@ -1,4 +1,5 @@
 import { AskExperience } from "@/components/AskExperience";
+import { PhoneLine } from "@/components/PhoneLine";
 import { Faces } from "@/components/Faces";
 import { Nav } from "@/components/Nav";
 import { FLAGS } from "@/lib/flags";
@@ -24,6 +25,7 @@ export default async function Home() {
         </p>
         <div className="mt-8">
           <AskExperience suggestions={pickSuggestions(HOME_PICKS, "current")} flags={{ showme: FLAGS.showme, call: FLAGS.call }} />
+          <PhoneLine />
         </div>
       </section>
     </main>
