@@ -141,7 +141,6 @@ export function AskExperience({
               onChange={(e) => setText(e.target.value)}
               placeholder={placeholder ?? "Ask anything about USC…"}
               className="min-w-0 flex-1 bg-transparent px-3 py-3 text-lg outline-none placeholder:text-black/35"
-              autoFocus
             />
             <button
               disabled={streaming || text.trim().length < 3}

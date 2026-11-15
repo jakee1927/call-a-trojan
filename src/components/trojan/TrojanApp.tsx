@@ -121,9 +121,10 @@ export function TrojanApp() {
   const known = useRef<Set<string>>(new Set());
 
   const loadMe = useCallback(async () => {
-    const r = await fetch("/api/trojan/me", { cache: "no-store" });
-    const d = await r.json();
-    setMe(d.helper);
+    const d = await fetch("/api/trojan/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => ({ helper: null }));
+    setMe(d.helper ?? null);
     if (d.helper && (!d.helper.tags?.length || !d.helper.major)) setEditing(true);
   }, []);
 
