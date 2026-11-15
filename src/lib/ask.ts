@@ -272,21 +272,48 @@ function buildRequest(
 
 // ---------- Web citations ----------
 
-/** OpenAI writes web citations as "([site](url?utm_source=openai))": drop the tracking param and the extra parens. */
+const isUscUrl = (url: string) => {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return h === "usc.edu" || h.endsWith(".usc.edu");
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * OpenAI writes web citations as "([site](url?utm_source=openai))": drop the tracking param and the extra parens.
+ * Also enforces the "official USC pages only" promise: a link to any host outside usc.edu is removed
+ * (its words stay, the link doesn't), and so is a bare non-USC URL.
+ */
 export function cleanCitations(md: string): string {
   return md
     .replace(/([?&])utm_source=openai(&?)/g, (_m, a: string, b: string) => (a === "?" && b ? "?" : ""))
-    .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)");
+    .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (m, text: string, url: string) =>
+      isUscUrl(url) ? m : /^[\w.-]+\.[a-z]{2,}$/i.test(text) ? "" : text,
+    )
+    .replace(/(?<!\]\()https?:\/\/[^\s)\]]+/g, (url) => (isUscUrl(url) ? url : ""));
 }
 
-/** Streaming version: holds back a citation that is still arriving, so a link is only cleaned once it is whole. */
+/**
+ * Streaming version: releases text only up to a word boundary where no bracket or parenthesis is still open,
+ * so every link (and every bare URL) is whole when it is checked and cleaned.
+ */
 function citationStream() {
   let held = "";
   return {
     push(delta: string): string {
       held += delta;
-      const open = held.lastIndexOf("([");
-      const cut = open >= 0 && !/\)\)/.test(held.slice(open)) && held.length - open < 600 ? open : held.length;
+      let depth = 0;
+      let cut = 0;
+      for (let i = 0; i < held.length; i++) {
+        const c = held[i];
+        if (c === "[" || c === "(") depth++;
+        else if (c === "]" || c === ")") depth = Math.max(0, depth - 1);
+        else if (depth === 0 && (c === " " || c === "\n")) cut = i + 1;
+      }
+      if (held.length - cut > 800) cut = held.length; // unbalanced prose: never hold back more than a link's worth
       const out = cleanCitations(held.slice(0, cut));
       held = held.slice(cut);
       return out;

@@ -27,7 +27,7 @@ const AUDIENCE_WORDS: Record<Audience, string> = {
 
 type WebResult = { answer: string; sources: { title: string; url: string }[]; ms: number } | null;
 
-/** Live web search (OpenAI Responses API, hosted web_search tool), preferring official usc.edu pages. */
+/** Fallback web search (OpenAI Responses API, hosted web_search tool), limited to usc.edu. */
 export async function webSearchUsc(question: string, audience: Audience): Promise<WebResult> {
   const key = process.env.OPENAI_API_KEY;
   if (!key || process.env.VOICE_WEB_SEARCH === "0") return null;
@@ -41,11 +41,11 @@ export async function webSearchUsc(question: string, audience: Audience): Promis
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: process.env.VOICE_WEB_MODEL || "gpt-6-luna",
-        tools: [{ type: "web_search" }],
+        tools: [{ type: "web_search", filters: { allowed_domains: ["usc.edu"] } }], // official USC sites only
         reasoning: { effort: "low" },
         max_output_tokens: 2000,
         instructions:
-          "You research questions for Call a Trojan, a USC help line. Search the web, strongly preferring official usc.edu pages (schools, departments, Registrar, catalogue, admissions, advising). " +
+          "You research questions for Call a Trojan, a USC help line. Search official usc.edu pages (schools, departments, Registrar, catalogue, admissions, advising). " +
           "Run two or three targeted searches: the program's or office's own page, plus USC-wide guidance that applies to this person (first-year or transfer advising, General Education). " +
           "Be concrete: name the specific courses with their codes, requirements, dates and the advising or office contact the pages give. If it depends on something you don't know (their major, entry term), give what applies to everyone in their situation, then say what it depends on. " +
           "Reply in 2-4 plain sentences meant to be read aloud: no URLs, no markdown, no lists. Say which page the facts come from in words. If you can't find it, say so plainly.",
