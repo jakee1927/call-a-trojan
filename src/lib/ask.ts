@@ -41,6 +41,8 @@ Hard rules:
 - Pick helpers from the roster whose tags, major or year make them a good match, max 3, best first, each with a short
   concrete "why" (under 12 words, e.g. "Transferred from SMC; did D-clearance for POIR"). Pick helpers whenever the
   route is "trojan" or "both"; otherwise an empty list is fine.
+- When official sources contradict each other (different dates, numbers, emails, rooms), don't pick one: say plainly
+  that USC's pages disagree, cite both sides ([S#] each), and use route "both" so a Trojan can confirm what's current.
 - Don't ask for or repeat personal information (student IDs, grades, passwords).
 
 Output format, exactly:
