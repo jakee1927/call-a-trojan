@@ -140,7 +140,22 @@ export async function redirectCall(env: TwilioEnv, sid: string, twiml: string) {
   await rest(env, `/Calls/${encodeURIComponent(sid)}.json`, { Twiml: twiml });
 }
 
-/** SMS is best-effort: unregistered 10DLC traffic is usually blocked, so the spoken link is the real path. */
+/**
+ * Text the caller. US carriers block Twilio texts from an unregistered 10DLC number (error 30034), so the
+ * message is queued on the call row (meta.text) and a relay on the team's Mac sends it through Messages
+ * (src/voice/relay/text-relay.mjs). Twilio SMS is only tried when VOICE_TWILIO_SMS=1 (after A2P registration).
+ */
+export async function textCaller(callId: string, to: string | null, from: string | null, body: string) {
+  if (!to) return { queued: false };
+  const { mergeMeta } = await import("./calls");
+  await mergeMeta(callId, { text: { to, body, status: "pending", at: new Date().toISOString() } });
+  if (process.env.VOICE_TWILIO_SMS === "1") {
+    const r = await sendSms(to, from, body);
+    await mergeMeta(callId, { twilio_sms: r.ok ? "accepted" : r.error ?? "failed" });
+  }
+  return { queued: true };
+}
+
 export async function sendSms(to: string | null, from: string | null, body: string): Promise<{ ok: boolean; error?: string }> {
   const env = twilioEnv();
   const sender = from || env?.from;
@@ -185,12 +200,12 @@ You are the "AI Trojan" answering the Call a Trojan phone line, a free USC help 
 
 # Hard rules
 1. Never claim to be human or a student. Never invent personal experiences. You have none.
-2. Never answer a USC-specific fact (policy, deadline, date, office, form, fee, building, email, phone number, process) from memory. For every USC question, call lookup_usc first, then paraphrase what it returns in 1 to 3 spoken sentences. If the lookup has no answer, say USC's pages don't cover it.
+2. Never answer a USC-specific fact (policy, deadline, date, office, form, fee, building, email, phone number, process) from memory. For every USC question, call lookup_usc first, then paraphrase what it returns in 1 to 3 spoken sentences. If the lookup has no answer, say you couldn't find it on USC's pages.
 3. Right before you call lookup_usc, say one short filler line out loud, like "Let me check that." or "One sec, pulling up USC's page." Then call the tool.
 4. Lookups may include "trojan_answers": real Trojans' lived experience. Share them as "a Trojan who did this said..." and never as official policy. The official answer wins if they conflict.
 5. Transfer to a real Trojan when: the lookup's route is "trojan" or "both" and they want more, the caller asks for a person, the question is about lived experience (what's it really like, which professor, is it worth it), or you can't help. Ask first: "Want me to connect you with a real Trojan?" If yes, call transfer_to_trojan.
    - If it returns status "connecting": say exactly one short line like "Connecting you to <first name>, a real Trojan, now. Hang on!" and then stop talking.
-   - If it returns status "queued": tell them no Trojan is free right now, their question is saved, and a Trojan will answer at the link. Read the spoken_link slowly, then say the code again. Mention we also tried to text it to them. Then ask if there's anything else.
+   - If it returns status "queued": say no Trojan is free right now, their question is saved, and you're texting them a link where a real Trojan will answer it (usually within a couple hours). Never read a link or code aloud. If texting_link is false, say a Trojan will answer it in the app instead. Then ask if there's anything else.
 6. Applicants: help with process and student life. Never write, draft or rewrite any part of an application essay; you can explain what a prompt is asking.
 7. Don't ask for or repeat personal information (student ID, grades, passwords, home address). Their phone number is only used to text them the link.
 8. When the caller says bye or is done, say a short goodbye and then call end_call.
@@ -205,7 +220,7 @@ export const PHONE_TOOLS = [
     type: "function",
     name: "lookup_usc",
     description:
-      "Look up an answer from USC's official web pages and verified answers from real Trojans. Call this for ANY USC-specific question before answering. Takes 3-6 seconds.",
+      "Look up an answer: USC pages we've checked, verified answers from real Trojans, and a live web search (prefers usc.edu). Call this for ANY USC-specific question before answering. Takes about 5 seconds.",
     parameters: {
       type: "object",
       properties: {

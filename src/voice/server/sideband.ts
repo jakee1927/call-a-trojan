@@ -7,8 +7,7 @@ import {
   PHONE_MAX_SECONDS,
   redirectCall,
   referCall,
-  sendSms,
-  spokenLink,
+  textCaller,
   waitUrl,
 } from "./phone";
 import { normalizePhone, onShiftHumans, signTicket } from "./pick";
@@ -116,15 +115,18 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       };
       return { status: "connecting", trojan_first_name: helper.name.split(" ")[0], question_saved: h.ok };
     }
-    // Nobody on shift: keep the handoff queued and give them the wait-page link.
-    const sms = await sendSms(caller, line, `Call a Trojan: your question is saved. A real Trojan will answer it here: ${waitUrl(code)}`);
-    await mergeMeta(o.rowId, { sms: sms.ok ? "sent" : `failed: ${sms.error ?? ""}`.slice(0, 200) });
+    // Nobody on shift: keep the handoff queued and text them the wait-page link (no link read aloud).
+    const q = String(args.question ?? "").trim().slice(0, 120);
+    const t = await textCaller(
+      o.rowId,
+      caller,
+      line,
+      `Call a Trojan here! Your question${q ? ` ("${q}")` : ""} is saved. A real USC student will answer it here: ${waitUrl(code)}`,
+    );
     return {
       status: "queued",
       question_saved: h.ok,
-      spoken_link: spokenLink(code),
-      code: code.split("").join(" "),
-      texted: sms.ok,
+      texting_link: t.queued,
       tell_caller: h.promise ?? "A Trojan usually replies within a couple hours.",
     };
   };

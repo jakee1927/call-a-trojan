@@ -1,6 +1,6 @@
 import { siteUrl } from "@/lib/notify";
 import { getCall, mergeMeta, updateCall } from "@/voice/server/calls";
-import { say, sendSms, spokenLink, twilioRequestOk, twiml, waitUrl } from "@/voice/server/phone";
+import { say, textCaller, twilioRequestOk, twiml, waitUrl } from "@/voice/server/phone";
 import { normalizePhone, onShiftHumans, readTicket } from "@/voice/server/pick";
 import { twilioEnv, xmlEscape } from "@/voice/server/twilio";
 
@@ -38,12 +38,11 @@ export async function POST(req: Request) {
     if (!queued) {
       return twiml(say("Sorry, no Trojan could pick up right now. Please ask your question at " + siteUrl().replace(/^https?:\/\//, "") + ", and a real Trojan will reply. Bye!") + "<Hangup/>");
     }
-    const sms = await sendSms(caller, line, `Call a Trojan: your question is saved. A real Trojan will answer it here: ${waitUrl(code)}`);
-    await mergeMeta(tk.call_id, { transfer_status: status, sms: sms.ok ? "sent" : `failed: ${sms.error ?? ""}`.slice(0, 200) });
+    await mergeMeta(tk.call_id, { transfer_status: status });
+    const texted = await textCaller(tk.call_id, caller, line, `Call a Trojan here! Your question is saved. A real USC student will answer it here: ${waitUrl(code)}`);
     return twiml(
       say(
-        `Sorry, the Trojan couldn't pick up. Your question is saved, and a real Trojan will answer it at ${spokenLink(code)}. ` +
-          `Again, the code is ${code.split("").join(", ")}. ${sms.ok ? "We just texted you the link too. " : ""}Thanks for calling Call a Trojan!`,
+        `Sorry, the Trojan couldn't pick up. Your question is saved, and ${texted.queued ? "we're texting you a link where" : ""} a real Trojan will answer it soon. Thanks for calling Call a Trojan!`.replace("and  a", "and a"),
       ) + "<Hangup/>",
     );
   }
@@ -69,10 +68,10 @@ export async function POST(req: Request) {
   }
   await updateCall(tk.call_id, { status: "missed", ended_at: new Date().toISOString() });
   const site = siteUrl();
-  const sms = await sendSms(caller, line, `Call a Trojan: ask your USC question here and a real Trojan will reply: ${site}`);
+  const texted = await textCaller(tk.call_id, caller, line, `Call a Trojan here! Ask your USC question here and a real USC student will reply: ${site}`);
   return twiml(
     say(
-      `Hi, you've reached Call a Trojan. No Trojan is on the line right now. Ask your question at ${site.replace(/^https?:\/\//, "").replace(/\./g, " dot ")}, and a real USC student will reply. ${sms.ok ? "We just texted you the link. " : ""}Bye!`,
+      `Hi, you've reached Call a Trojan. No Trojan is on the line right now. ${texted.queued ? "We're texting you a link where you can ask, and a real USC student will reply." : "Please ask your question on the Call a Trojan website, and a real USC student will reply."} Bye!`,
     ) + "<Hangup/>",
   );
 }
