@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AskExperience } from "@/components/AskExperience";
+import { PhoneLine } from "@/components/PhoneLine";
 import { Nav } from "@/components/Nav";
 import { USG } from "@/lib/corpus";
 import { FLAGS } from "@/lib/flags";
@@ -28,6 +29,7 @@ export default function UsgDesk() {
         </p>
         <div className="mt-8">
           <AskExperience suggestions={pickSuggestions(USG_PICKS, "current", "usg-orgs")} orgSlug="usg" lockAudience flags={{ showme: FLAGS.showme, call: FLAGS.call }} placeholder="Ask USG anything…" />
+          <PhoneLine note="An AI Trojan picks up and connects you to USG." />
         </div>
       </section>
     </main>

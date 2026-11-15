@@ -3,12 +3,14 @@ import { db } from "./supabase-server";
 
 export async function insightsData() {
   const supa = db();
-  const [{ data: qs }, { data: hs }, { data: vas }, { data: usage }, { data: gap }] = await Promise.all([
+  const [{ data: qs }, { data: hs }, { data: vas }, { data: usage }, { data: gap }, { data: cs }] = await Promise.all([
     supa.from("questions").select("route,topics,status,audience,mode,created_at").order("created_at", { ascending: false }).limit(5000),
     supa.from("handoffs").select("status,created_at,claimed_at,closed_at").limit(5000),
     supa.from("verified_answers").select("uses,is_sample,expires_at").limit(5000),
     supa.from("usage_log").select("route,cost_usd,cache_read_tokens,input_tokens,ms").eq("route", "ask").order("created_at", { ascending: false }).limit(500),
     supa.from("gap_reports").select("body_md,created_at,handoff_count").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    // select * so a column the voice session adds (source/direction) is picked up without a code change
+    supa.from("calls").select("*").order("started_at", { ascending: false }).limit(2000),
   ]);
   const questions = qs ?? [];
   const handoffs = hs ?? [];
@@ -34,6 +36,9 @@ export async function insightsData() {
   const avgCost = costs.length ? costs.reduce((a, b) => a + b, 0) / costs.length : null;
   const lat = (usage ?? []).map((u) => u.ms).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
   const realVerified = (vas ?? []).filter((v) => !v.is_sample);
+  const calls = (cs ?? []) as CallRow[];
+  const phoneCalls = calls.filter(isPhoneCall).length;
+  const webCalls = calls.filter((c) => !isPhoneCall(c) && c.mode === "ai").length;
   return {
     total: questions.length,
     byRoute,
@@ -50,5 +55,19 @@ export async function insightsData() {
     medianLatencyMs: lat.length ? lat[Math.floor(lat.length / 2)] : null,
     byDay: Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0])),
     gap: gap ?? null,
+    phoneCalls,
+    webCalls,
+    webQuestions: questions.filter((q) => q.mode !== "voice").length,
   };
+}
+
+type CallRow = { mode?: string; transport?: string | null; source?: string | null; direction?: string | null; meta?: Record<string, unknown> | null };
+
+/** An inbound call to the public number (not a browser call, not the outbound ring to a Trojan). */
+function isPhoneCall(c: CallRow): boolean {
+  const src = c.source ?? (c.meta?.source as string | undefined);
+  const dir = c.direction ?? (c.meta?.direction as string | undefined);
+  if (src) return src === "phone";
+  if (dir) return dir === "inbound";
+  return false;
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AskExperience } from "@/components/AskExperience";
+import { PhoneLine } from "@/components/PhoneLine";
 import { Faces } from "@/components/Faces";
 import { Nav } from "@/components/Nav";
 import { FLAGS } from "@/lib/flags";
@@ -36,6 +37,7 @@ export default async function FuturePage() {
             flags={{ showme: false, call: FLAGS.call }}
             placeholder="Ask anything about applying to or starting at USC…"
           />
+          <PhoneLine note="An AI Trojan picks up, and a student ambassador gets back to you." />
         </div>
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {[

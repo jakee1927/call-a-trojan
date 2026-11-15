@@ -44,7 +44,7 @@ export default async function Insights() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Questions asked" value={String(d.total)} sub={`${d.byAudience.applicant ?? 0} applicants · ${d.byAudience.incoming ?? 0} incoming`} />
+          <Stat label="Questions asked" value={String(d.webQuestions + d.phoneCalls)} sub={`${d.webQuestions} on the web · ${d.phoneCalls} phone call${d.phoneCalls === 1 ? "" : "s"}${d.webCalls ? ` · ${d.webCalls} in-browser calls` : ""}`} />
           <Stat label="Answered by AI" value={`${Math.round((d.byRoute.ai / routeTotal) * 100)}%`} sub="from official usc.edu pages, cited" />
           <Stat label="Median time to a Trojan" value={d.medianMin == null ? "—" : d.medianMin < 1.5 ? "1 min" : `${Math.round(d.medianMin)} min`} sub={`${d.handoffs} handoffs · ${d.stillOpen} still open`} />
           <Stat label="Verified answers" value={String(d.verifiedCount)} sub={`reused ${d.verifiedUses}× by later students`} />
