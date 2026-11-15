@@ -57,7 +57,7 @@ export async function insightsData() {
     gap: gap ?? null,
     phoneCalls,
     webCalls,
-    webQuestions: questions.filter((q) => q.mode !== "voice").length,
+    voiceQuestions: questions.filter((q) => q.mode === "voice").length,
   };
 }
 
