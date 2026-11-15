@@ -26,10 +26,26 @@ export type AskInput = {
 
 const INSTRUCTIONS = `You are the answer engine of "Call a Trojan", a USC (University of Southern California) help desk.
 USC's websites say what the policy is. Real Trojans (USC student helpers) know how it actually works. Your job:
-answer from the official USC pages below, and when they aren't enough, say so plainly and hand the student to a Trojan.
+answer from the official USC pages below. When they don't cover the question, search USC's live websites (the web
+search tool, when you have it) and answer from what you find. When neither is enough, say so plainly and hand the
+student to a Trojan.
+
+When to search the web:
+- Don't search when the sources below already answer the question: answer straight away.
+- Search when the sources below don't cover it or only partly cover it: a specific school, major, program, course,
+  requirement, office, scholarship, housing or anything else not in the pages below. Run two to four targeted
+  searches: the program's or office's own page, USC-wide guidance that applies to this student (for example
+  first-year or transfer advising and General Education requirements), and the catalogue or schedule of classes
+  when the question is about courses.
+- Be concrete with what you find: name the specific courses (with codes), requirements, dates, forms and the
+  advising or office contact the pages give. "Ask your advisor" alone is not an answer when the pages have specifics.
+- If the answer depends on something you don't know (their major, their entry term), give what applies to everyone
+  in their situation first, then say what it depends on.
+- A fact from a page you found by searching counts as official only if the page is on a usc.edu site.
 
 How to decide the route:
-- "ai": the official sources fully answer the question. Answer it with [S#] citations.
+- "ai": the official sources (the pages below, or usc.edu pages you found by searching) fully answer the question.
+  Answer it with citations.
 - "both": the sources answer part of it (the policy, the dates, the form), but the student also needs lived know-how
   (who to email, how long it really takes, what to say, which option people pick). Answer the official part, then
   name exactly what a Trojan can add. Use "both" in particular when:
@@ -43,15 +59,18 @@ How to decide the route:
   Route "ai" when the pages directly answer what the student asked, even if they mention their situation: a date or
   deadline, a fee or amount, a definition, an eligibility rule, where a page or form lives, or how to submit a form
   the pages spell out step by step (e.g. "I'm a spring admit, when is my deposit due?" is "ai" if a page states it).
-- "trojan": the sources don't cover it, or it's about experience, opinion or judgment (which professor, is it worth it,
-  what's it actually like). Say briefly what USC's pages do and don't say, and that a Trojan will answer.
+- "trojan": neither the sources below nor a web search covers it, or it's about experience, opinion or judgment (which
+  professor, is it worth it, what's it actually like). Say briefly what USC's pages do and don't say, and that a
+  Trojan will answer. If a search turned up useful official facts (a requirement, a contact, a page to check), give
+  them and use "both" instead.
 - If the question is unrelated to USC student life, answer briefly, route "ai", confidence low.
 
 Confidence is 0 to 1: how sure you are the official sources answer the question correctly and completely.
 
 Hard rules:
-- Every official fact carries an [S#] citation that points to a source below. Never invent policies, dates, deadlines,
-  fees, emails or phone numbers. If it isn't in the sources, say you don't see it in USC's pages.
+- Every official fact carries a citation: [S#] for a source below, or a Markdown link to the usc.edu page you found
+  it on, written as [short page name](url). Never invent policies, dates, deadlines, fees, emails or phone numbers.
+  If it isn't in the sources and you can't find it on USC's sites, say you don't see it in USC's pages.
 - Verified Trojan answers ([T#], given after the sources) are lived experience, never official policy. A Trojan answer
   never overrides an official fact; if they conflict, the official source wins and you say so.
 - Only list a [T#] in used_answers if it genuinely answers this question (paraphrases count; different topics don't).
@@ -67,8 +86,10 @@ Line 1: one single-line JSON object and nothing else (no code fence):
 {"route":"ai|trojan|both","confidence":0.0,"topics":["short-kebab-topic"],"helper_tags":["tag"],"used_answers":["T1"],"helpers":[{"ref":"H1","why":"..."}]}
 Then a blank line, then the answer in Markdown for the "USC says" lane:
 - Lead with the direct answer in one or two sentences. Then short bullets or numbered steps if useful.
-- Cite as [S1], [S2] right after the fact. Do not write URLs; the app links the refs.
-- Keep it under about 180 words. No headings bigger than bold text. No sign-off.
+- Cite as [S1], [S2] right after the fact (the app links the refs). For a fact from a web search, link the page:
+  [short page name](url). No bare URLs.
+- Keep it under about 180 words (up to about 230 when you searched and have specifics to give). No headings bigger
+  than bold text. No sign-off.
 - Don't restate Trojan answers in this lane (the app shows them in their own lane). You may end with one sentence like
   "A Trojan can tell you how long it actually takes." when the route is "both" or "trojan".`;
 
@@ -228,11 +249,13 @@ function buildRequest(
       context: renderDynamic(input, verified, helpers),
       user:
         `Question: ${input.question.trim()}\n\n` +
-        `(Voice call: after the JSON header line, answer in 2-3 short plain sentences that can be read aloud, ` +
-        `still citing [S#] after official facts. No bullets, no headings.)`,
+        `(Voice call: after the JSON header line, answer in 2-4 short plain sentences that can be read aloud, ` +
+        `still citing [S#] after official facts. No bullets, no headings. For a fact you found by searching, ` +
+        `keep the specifics (course codes, dates, the contact) and link the page as usual; the link is not read out.)`,
       effort: voiceModel && /terra|luna/.test(voiceModel) ? "none" : "low",
-      maxTokens: 1500,
+      maxTokens: 2500,
       openaiModel: voiceModel,
+      webSearch: process.env.ASK_WEB_SEARCH === "0" ? undefined : { domains: ["usc.edu"] },
     };
   }
   return {
@@ -242,6 +265,37 @@ function buildRequest(
     user: `Question: ${input.question.trim()}`,
     effort: "low",
     maxTokens: 8000,
+    // Live search of USC's own sites for anything the saved pages don't cover (ASK_WEB_SEARCH=0 turns it off).
+    webSearch: process.env.ASK_WEB_SEARCH === "0" ? undefined : { domains: ["usc.edu"] },
+  };
+}
+
+// ---------- Web citations ----------
+
+/** OpenAI writes web citations as "([site](url?utm_source=openai))": drop the tracking param and the extra parens. */
+export function cleanCitations(md: string): string {
+  return md
+    .replace(/([?&])utm_source=openai(&?)/g, (_m, a: string, b: string) => (a === "?" && b ? "?" : ""))
+    .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)");
+}
+
+/** Streaming version: holds back a citation that is still arriving, so a link is only cleaned once it is whole. */
+function citationStream() {
+  let held = "";
+  return {
+    push(delta: string): string {
+      held += delta;
+      const open = held.lastIndexOf("([");
+      const cut = open >= 0 && !/\)\)/.test(held.slice(open)) && held.length - open < 600 ? open : held.length;
+      const out = cleanCitations(held.slice(0, cut));
+      held = held.slice(cut);
+      return out;
+    },
+    flush(): string {
+      const out = cleanCitations(held);
+      held = "";
+      return out;
+    },
   };
 }
 
@@ -441,10 +495,15 @@ export function streamAsk(input: AskInput): ReadableStream<Uint8Array> {
         let buf = "";
         let header: AskHeader | null = null;
         let markdown = "";
+        const cites = citationStream();
+        const emit = (text: string) => {
+          if (!text) return;
+          markdown += text;
+          controller.enqueue(enc.encode(text));
+        };
         for await (const delta of stream.deltas) {
           if (header) {
-            markdown += delta;
-            controller.enqueue(enc.encode(delta));
+            emit(cites.push(delta));
             continue;
           }
           buf += delta;
@@ -452,16 +511,16 @@ export function streamAsk(input: AskInput): ReadableStream<Uint8Array> {
           if (split) {
             header = enrich(split[0], verified, helpers, questionId);
             controller.enqueue(enc.encode(JSON.stringify(header) + "\n"));
-            markdown = split[1];
-            if (markdown) controller.enqueue(enc.encode(markdown));
+            emit(cites.push(split[1]));
           }
         }
+        emit(cites.flush());
         const { refused } = await stream.done();
         if (!header) {
           // Stream ended before a header was found.
           const split = splitHeader(buf + "\n");
           header = enrich(split?.[0] ?? null, verified, helpers, questionId);
-          markdown = split?.[1] ?? buf;
+          markdown = cleanCitations(split?.[1] ?? buf);
           controller.enqueue(
             enc.encode(JSON.stringify(header) + "\n" + markdown),
           );
@@ -504,7 +563,7 @@ export async function askText(input: AskInput): Promise<AskTextResult> {
   );
   const split = splitHeader(text + "\n");
   const header = enrich(split?.[0] ?? null, verified, helpers, questionId);
-  const markdown = (split?.[1] ?? text).trim();
+  const markdown = cleanCitations((split?.[1] ?? text).trim());
   console.log(`[ask_text:${input.mode ?? "type"}] ${header.route} in ${Date.now() - t0}ms`);
   if (input.mode === "voice") after(() => finish(questionId, header, markdown)); // don't make the caller wait
   else await finish(questionId, header, markdown);

@@ -45,9 +45,11 @@ export async function webSearchUsc(question: string, audience: Audience): Promis
         reasoning: { effort: "low" },
         max_output_tokens: 2000,
         instructions:
-          "You research questions for Call a Trojan, a USC help line. Search the web, strongly preferring official usc.edu pages (schools, departments, Registrar, catalogue, admissions). " +
+          "You research questions for Call a Trojan, a USC help line. Search the web, strongly preferring official usc.edu pages (schools, departments, Registrar, catalogue, admissions, advising). " +
+          "Run two or three targeted searches: the program's or office's own page, plus USC-wide guidance that applies to this person (first-year or transfer advising, General Education). " +
+          "Be concrete: name the specific courses with their codes, requirements, dates and the advising or office contact the pages give. If it depends on something you don't know (their major, entry term), give what applies to everyone in their situation, then say what it depends on. " +
           "Reply in 2-4 plain sentences meant to be read aloud: no URLs, no markdown, no lists. Say which page the facts come from in words. If you can't find it, say so plainly.",
-        input: `The person asking is ${AUDIENCE_WORDS[audience]}. Question: ${question}`,
+        input: `Today is ${new Date().toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "long" })}. The person asking is ${AUDIENCE_WORDS[audience]}. Question: ${question}`,
       }),
       cache: "no-store",
     });
@@ -78,10 +80,9 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
   const t0 = Date.now();
   const question = String(rawQuestion ?? "").trim().slice(0, 1000);
   if (question.length < 3) return { ms: 0, question_id: null, sources: [], output: { error: "Ask the caller to repeat the question." } };
-  // The live web search runs alongside our grounded answer (verified Trojan answers + saved USC pages).
-  const webP = webSearchUsc(question, audience);
   try {
-    const [r, web] = await Promise.all([askText({ question, audience, mode: "voice", persist: true }), webP]);
+    // One engine for typed answers and calls: saved USC pages + verified Trojan answers + a live search of USC's sites.
+    const r = await askText({ question, audience, mode: "voice", persist: true });
     // Pull the Trojan answers' text so the voice model can share them ("a Trojan who did this said...").
     let trojan: { by: string; said: string }[] = [];
     if (r.used_answers.length) {
@@ -97,8 +98,14 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
         said: String(v.answer).slice(0, 700),
       }));
     }
-    if (r.question_id) await mergeMeta(callId, { last_question_id: r.question_id, web_ms: web?.ms ?? null });
-    const webSources = (web?.sources ?? []).map((s, i) => ({ ref: `W${i + 1}`, title: s.title, url: s.url }));
+    if (r.question_id) await mergeMeta(callId, { last_question_id: r.question_id });
+    // Pages the answer linked from its web search, shown as sources next to the saved-page ones.
+    const seen = new Set<string>();
+    const webSources = Array.from(r.answer_markdown.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g))
+      .map((m) => ({ title: m[1], url: m[2] }))
+      .filter((x) => !seen.has(x.url) && seen.add(x.url))
+      .slice(0, 4)
+      .map((x, i) => ({ ref: `W${i + 1}`, title: x.title, url: x.url }));
     return {
       ms: Date.now() - t0,
       question_id: r.question_id ?? null,
@@ -107,27 +114,26 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
       output: {
         route: r.route,
         confidence: r.confidence,
-        official_answer: speakable(r.answer_markdown),
-        official_sources: r.sources.map((s) => s.title),
-        web_answer: web?.answer ?? null,
-        web_sources: webSources.map((s) => s.title),
+        official_answer: spoken(r.answer_markdown),
+        official_sources: [...r.sources.map((s) => s.title), ...webSources.map((s) => s.title)],
         trojan_answers: trojan,
         note:
-          "official_answer comes from USC pages we've checked; web_answer is a live web search. Use whichever actually answers the question " +
-          "(official_answer wins if they conflict) and paraphrase it in 1-3 spoken sentences. If neither answers it, say so. " +
-          (r.route === "ai" ? "" : "Then offer to connect them with a real Trojan."),
+          r.route === "ai"
+            ? "Paraphrase the official answer in 1-3 spoken sentences. Keep its specifics (course codes, dates, contacts)."
+            : "Give the official part briefly, keeping its specifics, then offer to connect them with a real Trojan.",
         question_id: r.question_id ?? null,
       },
     };
   } catch (e) {
     console.error("[voice/tool] lookup", e);
-    const web = await webP;
+    // The main engine failed: fall back to a plain web search so the caller still gets an answer.
+    const web = await webSearchUsc(question, audience);
     if (web) {
       return {
         ms: Date.now() - t0,
         question_id: null,
         sources: web.sources.map((s, i) => ({ ref: `W${i + 1}`, title: s.title, url: s.url })),
-        output: { web_answer: web.answer, web_sources: web.sources.map((s) => s.title), note: "Paraphrase the web answer in 1-3 spoken sentences." },
+        output: { official_answer: web.answer, official_sources: web.sources.map((s) => s.title), note: "Paraphrase this in 1-3 spoken sentences." },
       };
     }
     return {
@@ -137,6 +143,11 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
       output: { error: "The lookup failed. Say you couldn't reach USC's pages and offer to leave it for a real Trojan." },
     };
   }
+}
+
+/** Spoken text: drop citation-style links (a link right after the sentence it supports); keep the words of inline links. */
+function spoken(md: string): string {
+  return speakable(md.replace(/([.!?;:)])\s*\[[^\]]+\]\(https?:\/\/[^)\s]+\)/g, "$1")).replace(/[ \t]{2,}/g, " ");
 }
 
 export type HandoffResult = { question_id: string | null; handoff_id: string | null; promise: string | null; ok: boolean };

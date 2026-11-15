@@ -35,6 +35,8 @@ export type LlmRequest = {
   maxTokens: number;
   /** OpenAI only: override OPENAI_MODEL for this call (e.g. the voice model) */
   openaiModel?: string;
+  /** OpenAI only: let the model search the live web (hosted web_search tool), limited to these domains */
+  webSearch?: { domains?: string[] };
 };
 
 export function provider(): Provider {
@@ -158,6 +160,16 @@ function openaiBase(r: LlmRequest) {
     reasoning: { effort: r.effort },
     max_output_tokens: r.maxTokens,
     store: false,
+    ...(r.webSearch
+      ? {
+          tools: [
+            {
+              type: "web_search" as const,
+              ...(r.webSearch.domains?.length ? { filters: { allowed_domains: r.webSearch.domains } } : {}),
+            },
+          ],
+        }
+      : {}),
   };
 }
 

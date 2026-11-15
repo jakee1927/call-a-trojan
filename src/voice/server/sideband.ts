@@ -69,12 +69,21 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(e));
   };
 
+  /** True while the model is producing a response; tool results wait for it to finish. */
+  let responding = false;
+  /** A tool result was sent but its response.create was rejected: send it again when the active response ends. */
+  let owed = false;
+  let lastCreate: "tool" | "filler" | null = null;
   const flush = () => {
+    if (responding) return;
     for (const [id, p] of pending) {
       if (p.output !== null && doneResponses.has(p.resp)) {
         send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: id, output: JSON.stringify(p.output) } });
         pending.delete(id);
         send({ type: "response.create" });
+        responding = true;
+        lastCreate = "tool";
+        return; // one at a time; the next result goes out when this response is done
       }
     }
   };
@@ -138,8 +147,26 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
     try {
       if (name === "lookup_usc") {
         if (args.audience) audience = asAudience(args.audience);
-        const r = await lookupUsc(o.rowId, args.question, audience);
-        output = r.output;
+        // A lookup that has to search USC's sites takes ~10 s: say one more line partway so the line isn't silent.
+        const stillChecking = setTimeout(() => {
+          if (responding || !pending.has(callId)) return;
+          responding = true;
+          lastCreate = "filler";
+          send({
+            type: "response.create",
+            response: {
+              tool_choice: "none",
+              instructions:
+                'The lookup is still running. Say exactly one short line like "Still checking USC\'s site, just a few more seconds." Nothing else, and do not answer the question yet.',
+            },
+          });
+        }, 4800);
+        try {
+          const r = await lookupUsc(o.rowId, args.question, audience);
+          output = r.output;
+        } finally {
+          clearTimeout(stillChecking);
+        }
         toolMs.push(Date.now() - t0);
       } else if (name === "transfer_to_trojan") {
         output = await transfer(args);
@@ -163,6 +190,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
   const onEvent = (ev: Ev) => {
     switch (ev.type) {
       case "response.created":
+        responding = true;
         lastResponseStart = Date.now();
         if (afterNextLine && !armedAfter) armedAfter = String((ev.response as { id?: string })?.id ?? "");
         break;
@@ -182,7 +210,12 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       case "response.done": {
         const r = ev.response as { id?: string; status?: string; output?: { type: string }[] };
         doneResponses.add(String(r?.id));
-        flush();
+        responding = false;
+        if (owed) {
+          owed = false;
+          responding = true;
+          send({ type: "response.create" });
+        } else flush();
         if (afterNextLine && armedAfter && armedAfter === r?.id) {
           const act = afterNextLine;
           afterNextLine = null;
@@ -193,6 +226,18 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       }
       case "error":
         console.error("[voice/sideband] error event", JSON.stringify(ev.error).slice(0, 300));
+        if (/active_response/.test(JSON.stringify(ev.error ?? ""))) {
+          // Another response (e.g. the caller spoke) is in progress: ours goes out when it finishes.
+          responding = true;
+          if (lastCreate === "tool") owed = true;
+        } else {
+          // Any other rejection must not leave us waiting forever.
+          setTimeout(() => {
+            if (Date.now() - lastResponseStart < 300) return; // a real response just started
+            responding = false;
+            flush();
+          }, 400);
+        }
         break;
     }
   };
