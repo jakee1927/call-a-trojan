@@ -257,6 +257,18 @@ export const PHONE_TOOLS = [
   },
 ];
 
+/** Turn detection while it is the caller's turn. It only reports speech: it never answers or interrupts by itself. */
+export function phoneVad() {
+  return {
+    type: "server_vad",
+    threshold: Number(process.env.VOICE_PHONE_VAD_THRESHOLD || 0.7), // higher = less sensitive
+    prefix_padding_ms: 300,
+    silence_duration_ms: Number(process.env.VOICE_PHONE_SILENCE_MS || 550),
+    create_response: false,
+    interrupt_response: false,
+  };
+}
+
 export function phoneSession() {
   return {
     type: "realtime",
@@ -269,16 +281,9 @@ export function phoneSession() {
       input: {
         noise_reduction: { type: "near_field" },
         transcription: { model: TRANSCRIBE_MODEL, language: "en" },
-        // Phone lines are noisy. A higher threshold makes the detector less sensitive, and with create_response and
-        // interrupt_response off it never answers or cuts the AI off by itself: the sideband decides (sideband.ts).
-        turn_detection: {
-          type: "server_vad",
-          threshold: Number(process.env.VOICE_PHONE_VAD_THRESHOLD || 0.7),
-          prefix_padding_ms: 300,
-          silence_duration_ms: Number(process.env.VOICE_PHONE_SILENCE_MS || 550),
-          create_response: false,
-          interrupt_response: false,
-        },
+        // The call starts with turn detection OFF: nothing on the line can cut the AI off while it talks.
+        // The sideband switches it on (phoneVad) only while it is the caller's turn. See sideband.ts.
+        turn_detection: null,
       },
       output: { voice: REALTIME_VOICE },
     },

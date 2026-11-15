@@ -5,6 +5,7 @@ import {
   hangupOpenAI,
   PHONE_GREETING,
   PHONE_MAX_SECONDS,
+  phoneVad,
   redirectCall,
   referCall,
   textCaller,
@@ -33,6 +34,11 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
   const started = Date.now();
   const transcript: TranscriptLine[] = [];
   const toolMs: number[] = [];
+  /** Compact event trace, saved on the call row (metrics.trace) so a bad call can be read afterwards. */
+  const trace: string[] = [];
+  const T = (m: string) => {
+    if (trace.length < 500) trace.push(`${((Date.now() - started) / 1000).toFixed(1)} ${m}`);
+  };
   let audience = asAudience(row?.audience);
 
   const pending = new Map<string, { resp: string; output: unknown | null }>();
@@ -65,6 +71,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       response: { instructions: `Say this first, warmly and naturally, word for word: "${PHONE_GREETING}" Don't call any tools yet.` },
     }),
   );
+  T("greeting create");
   const send = (e: Record<string, unknown>) => {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(e));
   };
@@ -74,8 +81,8 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
   // caller spoke. We decide when the AI answers, one response at a time, so line noise or the AI's own echo can't
   // cut it off or make it answer twice, and the caller can't interrupt it mid-sentence.
 
-  /** True while the model is producing a response. */
-  let responding = false;
+  /** True while the model is producing a response (the greeting is already on its way). */
+  let responding = true;
   /** A response is needed as soon as the current one finishes (a caller turn, or a rejected tool response). */
   let wantResponse = false;
   let lastCreate: "tool" | "filler" | "turn" | null = null;
@@ -94,11 +101,40 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
   const dropped = new Set<string>(); // caller items we ignored
   const awaiting = new Map<string, ReturnType<typeof setTimeout>>(); // short turns waiting for their transcript
 
+  // Half-duplex: turn detection is OFF whenever the AI is talking or a lookup is running, so nothing on the line
+  // (echo, noise, the caller) can cut it off. It goes ON only once the AI's audio has finished playing.
+  let listening = false;
+  let listenTimer: ReturnType<typeof setTimeout> | null = null;
+  let estQuietAt = 0; // estimated end of playback, from the line's length
+  const setListening = (on: boolean) => {
+    if (listenTimer) clearTimeout(listenTimer);
+    listenTimer = null;
+    if (on === listening) return;
+    listening = on;
+    if (on) send({ type: "input_audio_buffer.clear" }); // drop whatever came in while the AI was talking
+    send({ type: "session.update", session: { type: "realtime", audio: { input: { turn_detection: on ? phoneVad() : null } } } });
+    T(on ? "LISTEN on" : "LISTEN off");
+  };
+  /** Start listening once the AI has nothing more to say and its audio has played out. */
+  const listenWhenQuiet = () => {
+    if (listenTimer) clearTimeout(listenTimer);
+    listenTimer = null;
+    if (responding || wantResponse || pending.size > 0 || listening) return;
+    const est = Math.max(0, estQuietAt - Date.now());
+    // With playback events, wait for "stopped" (this timer is only a safety net); otherwise trust the estimate.
+    const wait = sawBufferEvents && bufferPlaying ? est + 2500 : est + 150;
+    listenTimer = setTimeout(() => {
+      listenTimer = null;
+      if (!responding && !wantResponse && pending.size === 0) setListening(true);
+    }, wait);
+  };
   const createResponse = (kind: "tool" | "turn") => {
+    setListening(false);
     responding = true;
     wantResponse = false;
     lastCreate = kind;
     send({ type: "response.create" });
+    T(`create ${kind}`);
   };
   const flush = () => {
     if (responding) return false;
@@ -118,9 +154,10 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
     if (responding) wantResponse = true;
     else createResponse("turn");
   };
-  const dropTurn = (itemId: string) => {
+  const dropTurn = (itemId: string, why: string) => {
     dropped.add(itemId);
     send({ type: "conversation.item.delete", item_id: itemId });
+    T(`drop turn: ${why}`);
   };
 
   /** Rough time for the phone to finish playing the last AI line (~170 wpm) after generation finishes. */
@@ -187,6 +224,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
           if (responding || !pending.has(callId)) return;
           responding = true;
           lastCreate = "filler";
+          T("create filler");
           send({
             type: "response.create",
             response: {
@@ -224,9 +262,14 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
 
   const onEvent = (ev: Ev) => {
     switch (ev.type) {
+      case "session.created":
+      case "session.updated":
+        T(`${ev.type} vad=${JSON.stringify((ev.session as { audio?: { input?: { turn_detection?: unknown } } })?.audio?.input?.turn_detection ?? null).slice(0, 90)}`);
+        break;
       case "response.created":
         responding = true;
         lastResponseStart = Date.now();
+        T("response.created");
         if (afterNextLine && !armedAfter) armedAfter = String((ev.response as { id?: string })?.id ?? "");
         break;
 
@@ -234,18 +277,21 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       case "input_audio_buffer.speech_started":
         speechOverlapped = aiSpeaking();
         speechDuringLookup = pending.size > 0;
+        T(`speech_started overlapped=${speechOverlapped}`);
         speechStartMs = Number(ev.audio_start_ms ?? 0);
         break;
       case "input_audio_buffer.speech_stopped":
         speechLenMs = Math.max(0, Number(ev.audio_end_ms ?? 0) - speechStartMs);
         speechEndedAt = Date.now() - SILENCE_MS;
+        T(`speech_stopped ${speechLenMs}ms`);
         break;
       case "input_audio_buffer.committed": {
         const id = String(ev.item_id ?? "");
+        T("turn committed");
         // Anything said over the AI's speech is ignored: echo, noise, or the caller talking over it. A turn that
         // started over the AI but kept going well after it finished is the caller's real reply, so it is kept.
         if (speechOverlapped && (aiSpeaking() || speechEndedAt < aiQuietAt + 400)) {
-          dropTurn(id);
+          dropTurn(id, "said over the AI");
           break;
         }
         // Said while a lookup was running: no separate reply, the lookup's answer follows and has heard it.
@@ -258,13 +304,14 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       case "conversation.item.input_audio_transcription.completed": {
         const id = String(ev.item_id ?? "");
         const text = String(ev.transcript ?? "").trim();
+        T(`heard "${text.slice(0, 60)}"${dropped.has(id) ? " (dropped)" : ""}`);
         if (dropped.has(id)) break;
         const waiting = awaiting.get(id);
         if (waiting) {
           clearTimeout(waiting);
           awaiting.delete(id);
           if (/[a-z0-9]/i.test(text)) respondToCaller();
-          else dropTurn(id); // no words in it: noise
+          else dropTurn(id, "no words"); // noise
         }
         if (/[a-z0-9]/i.test(text)) transcript.push({ role: "student", text, at: new Date().toISOString() });
         break;
@@ -274,18 +321,23 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       case "output_audio_buffer.started":
         sawBufferEvents = true;
         bufferPlaying = true;
+        T("playback started");
         break;
       case "output_audio_buffer.stopped":
       case "output_audio_buffer.cleared":
         sawBufferEvents = true;
         bufferPlaying = false;
         aiQuietAt = Date.now();
+        T(ev.type === "output_audio_buffer.cleared" ? "playback CLEARED" : "playback stopped");
+        listenWhenQuiet();
         break;
       case "response.output_audio_transcript.done": {
         const t = String(ev.transcript ?? "").trim();
         lastAiWords = t.split(/\s+/).length;
         // Audio is generated faster than it plays: estimate when this line ends on the phone (~175 wpm).
-        if (!sawBufferEvents) aiQuietAt = Math.max(aiQuietAt, lastResponseStart + 400 + lastAiWords * 340);
+        estQuietAt = Math.max(estQuietAt, lastResponseStart + 300 + lastAiWords * 330);
+        if (!sawBufferEvents) aiQuietAt = estQuietAt;
+        T(`ai said ${lastAiWords}w "${t.slice(0, 40)}"`);
         if (t) transcript.push({ role: "ai", text: t, at: new Date().toISOString() });
         break;
       }
@@ -297,7 +349,9 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
         const r = ev.response as { id?: string; status?: string; output?: { type: string }[] };
         doneResponses.add(String(r?.id));
         responding = false;
+        T(`response.done ${r?.status}${r?.status !== "completed" ? " " + JSON.stringify((ev.response as { status_details?: unknown })?.status_details ?? "").slice(0, 120) : ""}`);
         if (!flush() && wantResponse) createResponse(lastCreate === "tool" ? "tool" : "turn");
+        listenWhenQuiet();
         if (afterNextLine && armedAfter && armedAfter === r?.id) {
           const act = afterNextLine;
           afterNextLine = null;
@@ -308,6 +362,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       }
       case "error":
         console.error("[voice/sideband] error event", JSON.stringify(ev.error).slice(0, 300));
+        T(`ERROR ${JSON.stringify(ev.error).slice(0, 140)}`);
         if (/active_response/.test(JSON.stringify(ev.error ?? ""))) {
           // A response is already in progress: ours goes out when it finishes (the filler line is just skipped).
           responding = true;
@@ -318,6 +373,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
             if (Date.now() - lastResponseStart < 300) return; // a real response just started
             responding = false;
             if (!flush() && wantResponse) createResponse("turn");
+            listenWhenQuiet();
           }, 400);
         }
         break;
@@ -326,6 +382,8 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
 
   await new Promise<void>((resolve) => {
     const wrap = setTimeout(() => {
+      setListening(false);
+      responding = true;
       send({
         type: "response.create",
         response: {
@@ -364,7 +422,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
     ended_at: endReason === "transferred" ? null : new Date().toISOString(),
     duration_s: Math.round((Date.now() - started) / 1000),
     transcript,
-    metrics: { ...(fresh?.metrics ?? {}), toolMs, end_reason: endReason },
+    metrics: { ...(fresh?.metrics ?? {}), toolMs, end_reason: endReason, playback_events: sawBufferEvents, trace },
   });
 }
 
