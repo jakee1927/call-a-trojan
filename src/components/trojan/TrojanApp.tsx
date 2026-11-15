@@ -32,7 +32,7 @@ function ago(iso: string) {
   return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
 }
 
-function SignIn({ onDone }: { onDone: () => void }) {
+function SignIn({ onDone, demoPasscode }: { onDone: () => void; demoPasscode: string | null }) {
   const [name, setName] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -60,6 +60,13 @@ function SignIn({ onDone }: { onDone: () => void }) {
         <button disabled={busy} data-fx="rain" className="btn btn-gold btn-lg w-full">{busy ? "Signing in…" : "I'm a Trojan ✌️"}</button>
         {err && <p className="text-sm font-semibold text-gold">{err}</p>}
       </form>
+      {demoPasscode && (
+        <button type="button" onClick={() => setPass(demoPasscode)} data-fx="rain" className="mt-5 w-full rounded-2xl border-2 border-dashed border-gold px-4 py-3 text-left text-white">
+          <span className="block text-sm font-semibold text-gold">Judges, the passcode is</span>
+          <span className="display block text-2xl tracking-wide">{demoPasscode}</span>
+          <span className="block text-sm text-white/75">Tap to fill it in.</span>
+        </button>
+      )}
       <p className="mt-6 text-sm text-white/75">Demo sign-in uses a shared passcode. The roadmap uses USC SSO.</p>
     </div>
   );
@@ -115,7 +122,7 @@ function Profile({ me, onSaved }: { me: Helper; onSaved: (h: Helper) => void }) 
   );
 }
 
-export function TrojanApp() {
+export function TrojanApp({ demoPasscode = null }: { demoPasscode?: string | null }) {
   const [me, setMe] = useState<Helper | null | undefined>(undefined);
   const [inbox, setInbox] = useState<InboxItem[]>([]);
   const [editing, setEditing] = useState(false);
@@ -182,7 +189,7 @@ export function TrojanApp() {
   if (me === null)
     return (
       <div className="min-h-screen bg-cardinal">
-        <SignIn onDone={loadMe} />
+        <SignIn onDone={loadMe} demoPasscode={demoPasscode} />
       </div>
     );
 

@@ -22,7 +22,7 @@ export default function JudgeStrip() {
         <span className="display text-base text-gold">Judges, try it in 60 seconds</span>
         <span>1. Tap a suggested question and compare the two answers.</span>
         <span>2. Hit <b className="font-semibold">Ask a Trojan anyway</b>.</span>
-        <span>3. Open <a className="underline underline-offset-2" href="/trojan" target="_blank">/trojan</a> in another tab (passcode on the Devpost page) to answer it.</span>
+        <span>3. Open <a className="underline underline-offset-2" href="/trojan" target="_blank">/trojan</a> in another tab (the passcode is shown on that page) to answer it.</span>
         <span>4. Ask a reworded version: the Trojan&apos;s answer comes back instantly.</span>
         <button onClick={() => { try { sessionStorage.removeItem("judge"); } catch {} setShow(false); }} className="ml-auto text-white/75 underline underline-offset-2 hover:text-white">Hide</button>
       </div>
