@@ -134,6 +134,11 @@ export function useHumanCall(opts: Opts) {
           const Twilio = await loadTwilio();
           const dev = new Twilio.Device(j.token, { codecPreferences: ["opus", "pcmu"], closeProtection: false, logLevel: "warn" });
           device.current = dev;
+          dev.on("error", (e: unknown) => {
+            console.error("[human-call] device", e);
+            const m = (e as { message?: string })?.message;
+            setError(m ? `Calling error: ${m}` : "Calling error");
+          });
           const call = await dev.connect({ params: { room: j.room }, rtcConstraints: { audio: MIC } });
           tcall.current = call;
           call.on("accept", () => {

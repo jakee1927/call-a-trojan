@@ -209,9 +209,11 @@ function AiCall(props: Props & { plan: Extract<Plan, { mode: "ai" }> }) {
             {ai.status === "connecting" ? "Connecting to the AI Trojan…" : ai.status === "ended" ? "No transcript." : "The live transcript shows up here."}
           </p>
         )}
-        {ai.lines.map((l) => (
-          <Bubble key={l.id} line={l} />
-        ))}
+        {ai.lines
+          .filter((l, i, all) => l.text.trim() || i === all.length - 1)
+          .map((l) => (
+            <Bubble key={l.id} line={l} />
+          ))}
         {ai.toolBusy && (
           <p className="self-start rounded-full bg-gold/30 px-3 py-1 text-xs font-semibold text-ink/70">
             <span className="mr-1 inline-block animate-spin">⟳</span> {ai.toolBusy}
