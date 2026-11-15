@@ -1,0 +1,86 @@
+[
+  {
+    "question": "When does spring 2027 registration open for continuing students, and where do I check my registration appointment?",
+    "audience": "current",
+    "expected_route": "ai",
+    "why": "Official dates on the Registration Calendar (Oct 26, 2026 for continuing students) and the appointment location (myInfo tab in Web Registration, or my.usc.edu).",
+    "source_ids": ["academics--spring-2027-calendar", "academics--web-registration"]
+  },
+  {
+    "question": "What is the last day to drop a Spring 2027 class without it showing as a W?",
+    "audience": "current",
+    "expected_route": "ai",
+    "why": "The calendar gives Feb 26, 2027 (session 001) as the last day to drop without a W; the grades page explains drops through week 3 leave no transcript mark.",
+    "source_ids": ["academics--spring-2027-calendar", "academics--grades-pass-no-pass"]
+  },
+  {
+    "question": "What is the withdrawal (W) deadline for spring 2027 and when do classes start?",
+    "audience": "current",
+    "expected_route": "ai",
+    "why": "Official dates: classes begin Jan 11, 2027; last day to withdraw Apr 9, 2027 (session 001).",
+    "source_ids": ["academics--spring-2027-calendar"]
+  },
+  {
+    "question": "How do I get a community college course from Santa Monica College to count toward my USC degree?",
+    "audience": "incoming",
+    "expected_route": "ai",
+    "why": "Transfer Credit Services covers the articulation agreements, the petition process, the one-semester deadline and the transcript rules.",
+    "source_ids": ["academics--transfer-credit-services"]
+  },
+  {
+    "question": "How many units can I take Pass/No Pass, and what grade do I need for a P?",
+    "audience": "current",
+    "expected_route": "ai",
+    "why": "The grades page states 24 units toward a degree (up to 4 toward GE), C- or better for P, and that P/NP must be elected by the add deadline.",
+    "source_ids": ["academics--grades-pass-no-pass"]
+  },
+  {
+    "question": "What is D-clearance and how do I request it for a course that needs it?",
+    "audience": "incoming",
+    "expected_route": "both",
+    "why": "The official pages describe the request process by department and prefix (GE office for GESM/FESM/MDA/INDS, POIR form for IR, instructor or department elsewhere), but none of the fetched pages define the term. The student tip covers which form to find on the course's page.",
+    "source_ids": ["academics--d-clearance-dornsife-ge-courses", "academics--d-clearance-dornsife-poir"]
+  },
+  {
+    "question": "I'm a transfer student starting in spring, my registration opens Thursday, how do I get D-clearance before then?",
+    "audience": "incoming",
+    "expected_route": "both",
+    "why": "Official side: request through the department or GE office listed for the course, and note that D-clearance does not guarantee a seat and must be obtained before registering in Web Registration. Student tip: which offices reply fastest and how transfer students have handled the timing. Spring 2027 classes begin Jan 11, 2027.",
+    "source_ids": ["academics--d-clearance-dornsife-ge-courses", "academics--web-registration", "academics--spring-2027-calendar"]
+  },
+  {
+    "question": "Do I have to meet an advisor before I can register for a GE course, and how do I book one?",
+    "audience": "incoming",
+    "expected_route": "both",
+    "why": "Official side: Dornsife advisors are assigned by major and minor, and students are strongly encouraged to book early via Advise USC. Student tip: how quickly advisor slots fill in registration week.",
+    "source_ids": ["academics--dornsife-advising", "academics--d-clearance-dornsife-ge-courses"]
+  },
+  {
+    "question": "If I get D-clearance for a class, am I guaranteed a seat?",
+    "audience": "current",
+    "expected_route": "both",
+    "why": "The POIR page says approval does not guarantee a seat. Students add real experience on how waitlist-free classes still open up during add/drop.",
+    "source_ids": ["academics--d-clearance-dornsife-poir"]
+  },
+  {
+    "question": "Which professor should I take for CSCI 104, and which section is easier?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Needs lived experience about teaching style and workload. No official USC page rates instructors, and the pages collected here don't cover it.",
+    "source_ids": []
+  },
+  {
+    "question": "Is it realistic to get D-clearance for a full class, or should I plan on another course?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Needs real outcomes: how often closed-course requests are granted, and which departments respond. Official pages only state the rules (for example, POIR closed-course approval is limited to graduating seniors).",
+    "source_ids": ["academics--d-clearance-dornsife-poir"]
+  },
+  {
+    "question": "My registration appointment is late in the window, will the sections I want be full by then?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Needs student experience on section fill rates for popular courses. The official pages give appointment timing but no seat-availability data.",
+    "source_ids": ["academics--web-registration"]
+  }
+]
