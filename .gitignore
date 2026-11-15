@@ -17,3 +17,6 @@ data/manual/screenshots/experience-academics.png
 data/manual/screenshots/experience-home.png
 data/manual/screenshots/webreg-coursebin.png
 data/manual/screenshots/registration-summary.png
+.vercel
+.env*
+!.env.example
