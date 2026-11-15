@@ -23,7 +23,7 @@ export async function PATCH(req: Request) {
   if (typeof b.year === "string") patch.year = b.year.trim().slice(0, 20) || null;
   if (typeof b.major === "string") patch.major = b.major.trim().slice(0, 60) || null;
   if (typeof b.bio === "string") patch.bio = b.bio.trim().slice(0, 200) || null;
-  if (typeof b.phone === "string") patch.phone = b.phone.replace(/[^\d+]/g, "").slice(0, 16) || null;
+  if (typeof b.phone === "string") patch.phone = toE164(b.phone);
   if (typeof b.avatar_url === "string") patch.avatar_url = b.avatar_url.trim().slice(0, 500) || null;
   if (b.org_slug === "usg" || b.org_slug === null) patch.org_slug = b.org_slug;
   if (Array.isArray(b.tags))
@@ -39,4 +39,14 @@ export async function PATCH(req: Request) {
     .single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ helper: data });
+}
+
+/** Store phones as E.164 (+12135551234) for the voice session; assume US for 10 digits. */
+function toE164(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  if (raw.trim().startsWith("+")) return `+${digits}`.slice(0, 16);
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return `+${digits}`.slice(0, 16);
 }
