@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { generateText, streamText, type LlmRequest } from "./llm";
 import { PAGES, SOURCES, USG } from "./corpus";
 import { db } from "./supabase-server";
@@ -208,6 +209,22 @@ function buildRequest(
   verified: VerifiedRow[],
   helpers: HelperRow[],
 ): LlmRequest {
+  if (input.mode === "voice") {
+    // Spoken lookups: same header + refs, but a 2-3 sentence answer, a small output cap and an optional faster model.
+    const voiceModel = process.env.OPENAI_VOICE_MODEL || undefined;
+    return {
+      route,
+      system: cachedSystem(),
+      context: renderDynamic(input, verified, helpers),
+      user:
+        `Question: ${input.question.trim()}\n\n` +
+        `(Voice call: after the JSON header line, answer in 2-3 short plain sentences that can be read aloud, ` +
+        `still citing [S#] after official facts. No bullets, no headings.)`,
+      effort: voiceModel && /terra|luna/.test(voiceModel) ? "none" : "low",
+      maxTokens: 1500,
+      openaiModel: voiceModel,
+    };
+  }
   return {
     route,
     system: cachedSystem(), // identical bytes every request: instructions + whole corpus
@@ -473,13 +490,14 @@ export async function askText(input: AskInput): Promise<AskTextResult> {
     createQuestion(input),
   ]);
   const { text } = await generateText(
-    buildRequest("ask_text", input, verified, helpers),
+    buildRequest(input.mode === "voice" ? "ask_voice" : "ask_text", input, verified, helpers),
   );
   const split = splitHeader(text + "\n");
   const header = enrich(split?.[0] ?? null, verified, helpers, questionId);
   const markdown = (split?.[1] ?? text).trim();
-  console.log(`[ask_text] ${header.route} in ${Date.now() - t0}ms`);
-  await finish(questionId, header, markdown);
+  console.log(`[ask_text:${input.mode ?? "type"}] ${header.route} in ${Date.now() - t0}ms`);
+  if (input.mode === "voice") after(() => finish(questionId, header, markdown)); // don't make the caller wait
+  else await finish(questionId, header, markdown);
   const cited = new Set(
     Array.from(markdown.matchAll(/\[S(\d+)\]/g)).map((m) => `S${m[1]}`),
   );

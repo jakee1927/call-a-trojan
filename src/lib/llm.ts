@@ -16,7 +16,7 @@ import { db } from "./supabase-server";
  */
 
 export type Provider = "openai" | "anthropic";
-export type Effort = "low" | "medium";
+export type Effort = "none" | "low" | "medium";
 export type ImagePart = {
   base64: string;
   mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
@@ -33,6 +33,8 @@ export type LlmRequest = {
   image?: ImagePart;
   effort: Effort;
   maxTokens: number;
+  /** OpenAI only: override OPENAI_MODEL for this call (e.g. the voice model) */
+  openaiModel?: string;
 };
 
 export function provider(): Provider {
@@ -80,9 +82,9 @@ function cost(m: string, u: Usage): number {
   );
 }
 
-export async function logUsage(route: string, u: Usage | null, ms?: number) {
+export async function logUsage(route: string, u: Usage | null, ms?: number, usedModel?: string) {
   if (!u) return;
-  const m = model();
+  const m = usedModel ?? model();
   const row = {
     route,
     model: m,
@@ -151,7 +153,7 @@ function openaiInput(r: LlmRequest): OpenAI.Responses.ResponseInput {
 
 function openaiBase(r: LlmRequest) {
   return {
-    model: model(),
+    model: r.openaiModel || model(),
     input: openaiInput(r),
     reasoning: { effort: r.effort },
     max_output_tokens: r.maxTokens,
@@ -184,6 +186,8 @@ function anthropicBase(r: LlmRequest) {
   };
 }
 
+const anthropicEffort = (e: Effort) => (e === "none" ? "low" : e);
+
 // ---------- public API ----------
 
 export type TextStream = {
@@ -210,7 +214,7 @@ export function streamText(r: LlmRequest): TextStream {
         ev.type === "response.completed" ||
         ev.type === "response.incomplete"
       ) {
-        await logUsage(r.route, fromOpenAI(ev.response.usage), Date.now() - t0);
+        await logUsage(r.route, fromOpenAI(ev.response.usage), Date.now() - t0, r.openaiModel || model());
       } else if (ev.type === "response.failed") {
         throw new Error(ev.response.error?.message ?? "OpenAI response failed");
       } else if (ev.type === "error") {
@@ -222,7 +226,7 @@ export function streamText(r: LlmRequest): TextStream {
   async function* anthropicDeltas() {
     const stream = anthropic().messages.stream({
       ...anthropicBase(r),
-      output_config: { effort: r.effort },
+      output_config: { effort: anthropicEffort(r.effort) },
     });
     for await (const ev of stream) {
       if (ev.type === "content_block_delta" && ev.delta.type === "text_delta")
@@ -259,7 +263,7 @@ export async function generateObject<S extends z.ZodType>(
   if (provider() === "anthropic") {
     const res = await anthropic().messages.parse({
       ...anthropicBase(r),
-      output_config: { effort: r.effort, format: zodOutputFormat(schema) },
+      output_config: { effort: anthropicEffort(r.effort), format: zodOutputFormat(schema) },
     });
     await logUsage(r.route, fromAnthropic(res.usage), Date.now() - t0);
     return (res.parsed_output as z.infer<S> | null) ?? null;
@@ -268,7 +272,7 @@ export async function generateObject<S extends z.ZodType>(
     ...openaiBase(r),
     text: { format: zodTextFormat(schema, name) },
   });
-  await logUsage(r.route, fromOpenAI(res.usage), Date.now() - t0);
+  await logUsage(r.route, fromOpenAI(res.usage), Date.now() - t0, r.openaiModel || model());
   return (res.output_parsed as z.infer<S> | null) ?? null;
 }
 
