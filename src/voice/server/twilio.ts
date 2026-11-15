@@ -84,7 +84,10 @@ let accountType: Promise<string | null> | null = null;
 export function twilioAccountType(env: TwilioEnv): Promise<string | null> {
   if (!accountType) {
     accountType = fetch(`https://api.twilio.com/2010-04-01/Accounts/${env.accountSid}.json`, {
-      headers: { Authorization: `Basic ${Buffer.from(`${env.keySid}:${env.keySecret}`).toString("base64")}` },
+      // Standard API keys can't read the Account resource (401), so this one request uses the auth token.
+      headers: {
+        Authorization: `Basic ${Buffer.from(env.authToken ? `${env.accountSid}:${env.authToken}` : `${env.keySid}:${env.keySecret}`).toString("base64")}`,
+      },
       cache: "no-store",
     })
       .then((r) => (r.ok ? r.json() : null))
