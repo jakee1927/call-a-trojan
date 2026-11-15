@@ -51,12 +51,8 @@ export function voiceAccessToken(env: TwilioEnv, identity: string, ttlSeconds = 
     iss: env.keySid,
     sub: env.accountSid,
     iat: now,
-    nbf: now,
     exp: now + ttlSeconds,
-    grants: {
-      identity,
-      voice: { incoming: { allow: false }, outgoing: { application_sid: env.appSid } },
-    },
+    grants: { identity, voice: { outgoing: { application_sid: env.appSid } } },
   };
   const data = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
   const sig = crypto.createHmac("sha256", env.keySecret).update(data).digest("base64url");
