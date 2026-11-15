@@ -23,8 +23,10 @@ const FALLBACK: Suggestion[] = [
 ];
 
 /** Three suggestions that each exercise a different route; prefer the requested audience. */
-export function suggestions(audience: Audience): Suggestion[] {
-  const pool = SEED_QUESTIONS.filter((q) => q.question && q.expected_route);
+export function suggestions(audience: Audience, area?: string): Suggestion[] {
+  const all = SEED_QUESTIONS.filter((q) => q.question && q.expected_route);
+  const scoped = area ? all.filter((q) => q.area === area) : all;
+  const pool = [...scoped, ...all];
   const out: Suggestion[] = [];
   for (const route of ["ai", "both", "trojan"] as const) {
     const pick =
@@ -72,3 +74,19 @@ export function typicalReply(online: number, medianMin: number | null): string {
   if (online > 0) return "a few min";
   return "under 2 hr";
 }
+
+/** Curated picks by substring (so the demo story is stable), falling back to route-balanced picks. */
+export function pickSuggestions(prefs: string[], audience: Audience, area?: string): Suggestion[] {
+  const fallback = suggestions(audience, area);
+  const out: Suggestion[] = [];
+  for (const p of prefs) {
+    const q = SEED_QUESTIONS.find((s) => s.question.toLowerCase().includes(p.toLowerCase()));
+    if (q) out.push({ question: q.question, audience: q.audience, expected_route: q.expected_route });
+  }
+  for (const f of fallback) if (out.length < 3 && !out.some((o) => o.expected_route === f.expected_route)) out.push(f);
+  return out.slice(0, 3);
+}
+
+export const HOME_PICKS = ["When does spring 2027 registration open", "how do I get D-clearance before", "Which professor should I take for CSCI 104"];
+export const FUTURE_PICKS = ["first-year deadlines for Early Action", "first-gen and can't afford a consultant", "Which first-gen support"];
+export const USG_PICKS = ["How does my club get USG funding", "Can USG fund my RSO's travel", "Which student orgs are good for meeting people"];

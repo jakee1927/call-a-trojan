@@ -2,7 +2,7 @@ import { AskExperience } from "@/components/AskExperience";
 import { Faces } from "@/components/Faces";
 import { Nav } from "@/components/Nav";
 import { FLAGS } from "@/lib/flags";
-import { homeData, suggestions, typicalReply } from "@/lib/home";
+import { HOME_PICKS, homeData, pickSuggestions, typicalReply } from "@/lib/home";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export default async function Home() {
           who&apos;s done it. <span className="font-semibold text-ink">Type it, show it, or say it.</span>
         </p>
         <div className="mt-8">
-          <AskExperience suggestions={suggestions("current")} flags={{ showme: FLAGS.showme, call: FLAGS.call }} />
+          <AskExperience suggestions={pickSuggestions(HOME_PICKS, "current")} flags={{ showme: FLAGS.showme, call: FLAGS.call }} />
         </div>
       </section>
     </main>
