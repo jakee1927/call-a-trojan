@@ -6,7 +6,7 @@ import type { Briefing } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Helper ends the chat; Claude drafts the de-identified Q&A for approval. */
+/** Helper ends the chat; the AI drafts the de-identified Q&A for approval. */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const me = await currentHelperId();

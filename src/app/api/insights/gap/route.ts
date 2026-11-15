@@ -4,7 +4,7 @@ import { db } from "@/lib/supabase-server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Claude writes "Questions USC's websites can't answer" from the handoff log. */
+/** The AI writes "Questions USC's websites can't answer" from the handoff log. */
 export async function POST() {
   const supa = db();
   const { data: recent } = await supa.from("gap_reports").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle();

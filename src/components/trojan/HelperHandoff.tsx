@@ -78,7 +78,7 @@ export function HelperHandoff({ id, sources }: { id: string; sources: Source[] }
         <div className="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
           <Row label="They asked" text={b?.asked ?? d.question?.text ?? ""} />
           <Row label="The AI said" text={b?.ai_said ?? "…"} />
-          <Row label="Still open for you" text={b?.still_open ?? "Claude is writing the briefing…"} strong />
+          <Row label="Still open for you" text={b?.still_open ?? "The AI is writing the briefing…"} strong />
           {d.question?.image_url && <p className="text-xs text-black/45">📷 The student attached a screenshot.</p>}
           {d.question?.answer_md && (
             <button onClick={() => setShowAi((v) => !v)} className="text-xs font-bold text-cardinal underline">
@@ -107,7 +107,7 @@ export function HelperHandoff({ id, sources }: { id: string; sources: Source[] }
             <Chat handoffId={id} as="helper" disabled={h.status !== "claimed"} onStatus={(s) => { if (s !== h.status) load(); }} />
             {h.status === "claimed" && (
               <button onClick={() => act("close")} disabled={!!busy} className="w-full rounded-2xl bg-ink py-3.5 font-black text-white disabled:opacity-60">
-                {busy === "close" ? "Claude is drafting the Q&A…" : "End chat & save answer"}
+                {busy === "close" ? "Drafting the Q&A…" : "End chat & save answer"}
               </button>
             )}
           </>
@@ -117,7 +117,7 @@ export function HelperHandoff({ id, sources }: { id: string; sources: Source[] }
           <div className="space-y-3 rounded-2xl border-2 border-gold bg-white p-4">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-cardinal">Approve your verified answer</div>
-              <p className="text-sm text-black/55">Claude drafted this from your chat with names and personal details removed. Edit anything, then approve. The next student who asks gets it instantly.</p>
+              <p className="text-sm text-black/55">The AI drafted this from your chat with names and personal details removed. Edit anything, then approve. The next student who asks gets it instantly.</p>
             </div>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-wider text-black/45">Question</span>

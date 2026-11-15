@@ -255,7 +255,7 @@ export function TrojanApp() {
               {i.briefing ? (
                 <p className="mt-1 text-sm text-black/60"><span className="font-bold text-cardinal">Still open: </span>{i.briefing.still_open}</p>
               ) : (
-                <p className="mt-1 text-sm text-black/40">Claude is writing the briefing…</p>
+                <p className="mt-1 text-sm text-black/40">The AI is writing the briefing…</p>
               )}
               {i.briefing?.tags?.length ? (
                 <div className="mt-2 flex flex-wrap gap-1">
