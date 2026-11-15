@@ -1,0 +1,15 @@
+{
+  "id": "manual--arr-usc-edu-web-registration",
+  "url": "https://arr.usc.edu/web-registration/",
+  "title": "Web Registration guide: myCourseBin, R/D sections, dropping (USC Registrar)",
+  "area": "academics",
+  "audiences": [
+    "current"
+  ],
+  "topics": [
+    "d-clearance",
+    "registration"
+  ],
+  "fetched_at": "2026-11-14T19:00:00-08:00",
+  "text": "Paraphrased from the official page by hand (Nov 2026).\n\nQ: What is myCourseBin, and does adding a class enroll me?\nA: myCourseBin works like a shopping cart; adding a class does not register you. You must Schedule it, then press Register and complete Checkout.\n\nQ: I added a class but cannot finish registering. Why?\nA: The usual causes are missing D-clearance or a time conflict. Unschedule the class, fix the issue (get clearance or change section), then register again.\n\nQ: What do the R and D suffixes on a section number mean?\nA: R means open registration (any eligible student may register). D means department clearance is required.\n\nQ: How do I drop a class correctly?\nA: Go to myCourseBin, choose Unschedule, then Drop. Unscheduling alone leaves you on the roster and may still charge tuition."
+}

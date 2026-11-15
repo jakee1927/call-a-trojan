@@ -46,6 +46,14 @@ export function ShowMe({ audience, orgSlug }: { audience: Audience; orgSlug?: st
     }
   }
 
+  async function sample(path: string, question: string) {
+    setErr(null);
+    setRes(null);
+    const blob = await fetch(path).then((r) => r.blob());
+    setImg(await downscale(new File([blob], path.split("/").pop() ?? "sample.png", { type: blob.type })));
+    setQ(question);
+  }
+
   async function go() {
     if (!img) return;
     setBusy(true);
@@ -87,6 +95,14 @@ export function ShowMe({ audience, orgSlug }: { audience: Audience; orgSlug?: st
           <span className="text-xs">myUSC, Web Registration, OASIS, Workday…</span>
         </button>
       ) : null}
+      {!img && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-black/45">Or try a sample:</span>
+          <button onClick={() => sample("/demo/myusc-home.png", "Why can't I register for classes?")} className="rounded-full bg-black/5 px-3 py-1 font-semibold hover:bg-gold/40">myUSC: why can&apos;t I register?</button>
+          <button onClick={() => sample("/demo/oasis.png", "Where do I check my degree progress now?")} className="rounded-full bg-black/5 px-3 py-1 font-semibold hover:bg-gold/40">OASIS: where&apos;s my degree progress?</button>
+          <button onClick={() => sample("/demo/webreg-home.png", "How do I get to my course bin to register?")} className="rounded-full bg-black/5 px-3 py-1 font-semibold hover:bg-gold/40">Web Registration</button>
+        </div>
+      )}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
       {img && (
         <div className="space-y-3">
