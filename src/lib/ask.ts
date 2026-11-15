@@ -1,9 +1,15 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { claude, logUsage, MODEL } from "./claude";
+import { generateText, streamText, type LlmRequest } from "./llm";
 import { PAGES, SOURCES, USG } from "./corpus";
 import { db } from "./supabase-server";
-import type { AskHeader, AskTextResult, Audience, MatchedHelper, Route, UsedAnswer } from "./types";
+import type {
+  AskHeader,
+  AskTextResult,
+  Audience,
+  MatchedHelper,
+  Route,
+  UsedAnswer,
+} from "./types";
 
 export type AskInput = {
   question: string;
@@ -114,30 +120,50 @@ async function loadContext() {
   const [va, hp] = await Promise.all([
     supa
       .from("verified_answers")
-      .select("id,question,answer,helper_name,helper_major,helper_year,audience,topics,approved_at,is_sample")
+      .select(
+        "id,question,answer,helper_name,helper_major,helper_year,audience,topics,approved_at,is_sample",
+      )
       .gt("expires_at", new Date().toISOString())
       .order("approved_at", { ascending: true })
       .limit(300),
     supa
       .from("public_helpers")
-      .select("id,name,year,major,tags,bio,avatar_url,online,is_demo,is_ai,org_slug")
+      .select(
+        "id,name,year,major,tags,bio,avatar_url,online,is_demo,is_ai,org_slug",
+      )
       .eq("is_ai", false)
       .limit(80),
   ]);
   if (va.error) console.error("[ask] verified_answers", va.error.message);
   if (hp.error) console.error("[ask] helpers", hp.error.message);
-  return { verified: (va.data ?? []) as VerifiedRow[], helpers: (hp.data ?? []) as HelperRow[] };
+  return {
+    verified: (va.data ?? []) as VerifiedRow[],
+    helpers: (hp.data ?? []) as HelperRow[],
+  };
 }
 
 function monthYear(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "America/Los_Angeles" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "America/Los_Angeles",
+  });
 }
 
-function renderDynamic(input: AskInput, verified: VerifiedRow[], helpers: HelperRow[]): string {
+function renderDynamic(
+  input: AskInput,
+  verified: VerifiedRow[],
+  helpers: HelperRow[],
+): string {
   const parts: string[] = [];
-  const now = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "full" });
+  const now = new Date().toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    dateStyle: "full",
+  });
   parts.push(`Today is ${now} (Pacific).`);
-  parts.push(`<persona audience="${input.audience}">\n${PERSONAS[input.audience]}\n</persona>`);
+  parts.push(
+    `<persona audience="${input.audience}">\n${PERSONAS[input.audience]}\n</persona>`,
+  );
   if (input.orgSlug === "usg" && USG) {
     parts.push(
       `<org slug="usg" name="${USG.name}">\nThe student is asking at the USG front desk. Prefer USG context below (cite the matching [S#] when a source covers it).\n${USG.info_md}\n</org>`,
@@ -169,23 +195,26 @@ function renderDynamic(input: AskInput, verified: VerifiedRow[], helpers: Helper
         `\n</helper_roster>`,
     );
   } else {
-    parts.push(`<helper_roster>(no helpers yet; return an empty helpers list)</helper_roster>`);
+    parts.push(
+      `<helper_roster>(no helpers yet; return an empty helpers list)</helper_roster>`,
+    );
   }
   return parts.join("\n\n");
 }
 
-function buildParams(input: AskInput, verified: VerifiedRow[], helpers: HelperRow[]) {
-  const system: Anthropic.TextBlockParam[] = [
-    { type: "text", text: cachedSystem(), cache_control: { type: "ephemeral" } },
-    { type: "text", text: renderDynamic(input, verified, helpers) },
-  ];
+function buildRequest(
+  route: string,
+  input: AskInput,
+  verified: VerifiedRow[],
+  helpers: HelperRow[],
+): LlmRequest {
   return {
-    model: MODEL,
-    max_tokens: 8000,
-    thinking: { type: "adaptive" as const },
-    output_config: { effort: "low" as const },
-    system,
-    messages: [{ role: "user" as const, content: `Question: ${input.question.trim()}` }],
+    route,
+    system: cachedSystem(), // identical bytes every request: instructions + whole corpus
+    context: renderDynamic(input, verified, helpers),
+    user: `Question: ${input.question.trim()}`,
+    effort: "low",
+    maxTokens: 8000,
   };
 }
 
@@ -229,7 +258,8 @@ function enrich(
   helpers: HelperRow[],
   questionId: string,
 ): AskHeader {
-  const route: Route = h?.route === "trojan" || h?.route === "both" ? h.route : "ai";
+  const route: Route =
+    h?.route === "trojan" || h?.route === "both" ? h.route : "ai";
   const used: UsedAnswer[] = [];
   for (const ref of h?.used_answers ?? []) {
     const idx = Number(String(ref).replace(/\D/g, "")) - 1;
@@ -266,19 +296,45 @@ function enrich(
       });
     }
   }
-  // If Claude wants a Trojan but picked nobody, fall back to tag overlap.
-  if ((route === "trojan" || route === "both") && matched.length === 0 && helpers.length) {
-    const want = new Set([...(h?.helper_tags ?? []), ...(h?.topics ?? [])].map((t) => t.toLowerCase()));
+  // If the model wants a Trojan but picked nobody, fall back to tag overlap.
+  if (
+    (route === "trojan" || route === "both") &&
+    matched.length === 0 &&
+    helpers.length
+  ) {
+    const want = new Set(
+      [...(h?.helper_tags ?? []), ...(h?.topics ?? [])].map((t) =>
+        t.toLowerCase(),
+      ),
+    );
     const scored = helpers
-      .map((x) => ({ x, s: (x.tags ?? []).filter((t) => want.has(t.toLowerCase())).length + (x.online ? 0.5 : 0) }))
+      .map((x) => ({
+        x,
+        s:
+          (x.tags ?? []).filter((t) => want.has(t.toLowerCase())).length +
+          (x.online ? 0.5 : 0),
+      }))
       .sort((a, b) => b.s - a.s)
       .slice(0, 2);
     for (const { x } of scored)
-      matched.push({ id: x.id, name: x.name, why: (x.tags ?? []).slice(0, 3).join(" · "), year: x.year, major: x.major, tags: x.tags, avatar_url: x.avatar_url, online: x.online, is_demo: x.is_demo });
+      matched.push({
+        id: x.id,
+        name: x.name,
+        why: (x.tags ?? []).slice(0, 3).join(" · "),
+        year: x.year,
+        major: x.major,
+        tags: x.tags,
+        avatar_url: x.avatar_url,
+        online: x.online,
+        is_demo: x.is_demo,
+      });
   }
   return {
     route,
-    confidence: typeof h?.confidence === "number" ? Math.max(0, Math.min(1, h.confidence)) : 0.5,
+    confidence:
+      typeof h?.confidence === "number"
+        ? Math.max(0, Math.min(1, h.confidence))
+        : 0.5,
     topics: (h?.topics ?? []).slice(0, 6),
     helper_tags: (h?.helper_tags ?? []).slice(0, 6),
     used_answers: used,
@@ -326,8 +382,16 @@ async function finish(questionId: string, header: AskHeader, markdown: string) {
     if (error) console.error("[ask] question update", error.message);
   }
   for (const u of header.used_answers) {
-    const { data } = await supa.from("verified_answers").select("uses").eq("id", u.id).single();
-    if (data) await supa.from("verified_answers").update({ uses: (data.uses ?? 0) + 1 }).eq("id", u.id);
+    const { data } = await supa
+      .from("verified_answers")
+      .select("uses")
+      .eq("id", u.id)
+      .single();
+    if (data)
+      await supa
+        .from("verified_answers")
+        .update({ uses: (data.uses ?? 0) + 1 })
+        .eq("id", u.id);
   }
 }
 
@@ -340,19 +404,23 @@ export function streamAsk(input: AskInput): ReadableStream<Uint8Array> {
     async start(controller) {
       const t0 = Date.now();
       try {
-        const [{ verified, helpers }, questionId] = await Promise.all([loadContext(), createQuestion(input)]);
-        const stream = claude().messages.stream(buildParams(input, verified, helpers));
+        const [{ verified, helpers }, questionId] = await Promise.all([
+          loadContext(),
+          createQuestion(input),
+        ]);
+        const stream = streamText(
+          buildRequest("ask", input, verified, helpers),
+        );
         let buf = "";
         let header: AskHeader | null = null;
         let markdown = "";
-        for await (const event of stream) {
-          if (event.type !== "content_block_delta" || event.delta.type !== "text_delta") continue;
+        for await (const delta of stream.deltas) {
           if (header) {
-            markdown += event.delta.text;
-            controller.enqueue(enc.encode(event.delta.text));
+            markdown += delta;
+            controller.enqueue(enc.encode(delta));
             continue;
           }
-          buf += event.delta.text;
+          buf += delta;
           const split = splitHeader(buf);
           if (split) {
             header = enrich(split[0], verified, helpers, questionId);
@@ -361,27 +429,33 @@ export function streamAsk(input: AskInput): ReadableStream<Uint8Array> {
             if (markdown) controller.enqueue(enc.encode(markdown));
           }
         }
-        const final = await stream.finalMessage();
+        const { refused } = await stream.done();
         if (!header) {
           // Stream ended before a header was found.
           const split = splitHeader(buf + "\n");
           header = enrich(split?.[0] ?? null, verified, helpers, questionId);
           markdown = split?.[1] ?? buf;
-          controller.enqueue(enc.encode(JSON.stringify(header) + "\n" + markdown));
+          controller.enqueue(
+            enc.encode(JSON.stringify(header) + "\n" + markdown),
+          );
         }
-        if (final.stop_reason === "refusal") {
-          const note = "\n\nI can't help with that one here. Try asking a Trojan instead.";
+        if (refused) {
+          const note =
+            "\n\nI can't help with that one here. Try asking a Trojan instead.";
           markdown += note;
           controller.enqueue(enc.encode(note));
         }
         controller.close();
-        await Promise.all([finish(questionId, header, markdown), logUsage("ask", final.usage, Date.now() - t0)]);
+        console.log(`[ask] ${header.route} in ${Date.now() - t0}ms`);
+        await finish(questionId, header, markdown);
       } catch (e) {
         console.error("[ask] stream error", e);
         try {
           controller.enqueue(
             enc.encode(
-              JSON.stringify({ error: "Our AI is having a moment. You can still ask a Trojan." }) + "\n",
+              JSON.stringify({
+                error: "Our AI is having a moment. You can still ask a Trojan.",
+              }) + "\n",
             ),
           );
           controller.close();
@@ -394,25 +468,36 @@ export function streamAsk(input: AskInput): ReadableStream<Uint8Array> {
 /** Non-streaming variant (POST /api/ask/text). Shape is a contract with the voice session. */
 export async function askText(input: AskInput): Promise<AskTextResult> {
   const t0 = Date.now();
-  const [{ verified, helpers }, questionId] = await Promise.all([loadContext(), createQuestion(input)]);
-  const stream = claude().messages.stream(buildParams(input, verified, helpers));
-  const final = await stream.finalMessage();
-  const text = final.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
+  const [{ verified, helpers }, questionId] = await Promise.all([
+    loadContext(),
+    createQuestion(input),
+  ]);
+  const { text } = await generateText(
+    buildRequest("ask_text", input, verified, helpers),
+  );
   const split = splitHeader(text + "\n");
   const header = enrich(split?.[0] ?? null, verified, helpers, questionId);
   const markdown = (split?.[1] ?? text).trim();
-  await Promise.all([finish(questionId, header, markdown), logUsage("ask_text", final.usage, Date.now() - t0)]);
-  const cited = new Set(Array.from(markdown.matchAll(/\[S(\d+)\]/g)).map((m) => `S${m[1]}`));
+  console.log(`[ask_text] ${header.route} in ${Date.now() - t0}ms`);
+  await finish(questionId, header, markdown);
+  const cited = new Set(
+    Array.from(markdown.matchAll(/\[S(\d+)\]/g)).map((m) => `S${m[1]}`),
+  );
   return {
     route: header.route,
     confidence: header.confidence,
     answer_markdown: markdown,
     sources: SOURCES.filter((s) => cited.has(s.ref)),
-    used_answers: header.used_answers.map((u) => ({ ref: u.ref, id: u.id, helper_name: u.helper_name })),
-    helpers: header.helpers.map((h) => ({ id: h.id, name: h.name, why: h.why })),
+    used_answers: header.used_answers.map((u) => ({
+      ref: u.ref,
+      id: u.id,
+      helper_name: u.helper_name,
+    })),
+    helpers: header.helpers.map((h) => ({
+      id: h.id,
+      name: h.name,
+      why: h.why,
+    })),
     question_id: questionId || undefined,
   };
 }
