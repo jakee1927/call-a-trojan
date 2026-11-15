@@ -1,6 +1,7 @@
 import { GapReport } from "@/components/GapReport";
 import { Nav } from "@/components/Nav";
 import { insightsData } from "@/lib/insights";
+import { SEED_QUESTIONS } from "@/lib/corpus";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "USG Insights · Call a Trojan" };
@@ -99,6 +100,32 @@ export default async function Insights() {
           </div>
           {useSample && <p className="mt-2 text-xs text-black/40">Sample shape shown until there are 3+ days of real questions.</p>}
         </div>
+
+        {(() => {
+          const comm = SEED_QUESTIONS.filter((q) => (q as { origin?: string }).origin === "community");
+          if (!comm.length) return null;
+          const full = comm.filter((q) => q.expected_route === "ai").length;
+          const part = comm.filter((q) => q.expected_route === "both").length;
+          const none = comm.filter((q) => q.expected_route === "trojan").length;
+          return (
+            <div className="rounded-2xl bg-white p-5 ring-1 ring-black/5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-black uppercase tracking-[0.15em] text-black/50">Does usc.edu answer what students actually ask?</h2>
+                <span className="rounded bg-black/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black/55">sampled by hand from r/USC, Nov 2026</span>
+              </div>
+              <p className="mt-3 text-lg">
+                Of <b>{comm.length}</b> recurring student questions, <b className="text-cardinal">{full}</b> are fully answered on usc.edu, <b>{part}</b> partly, and{" "}
+                <b className="text-cardinal">{none} not at all</b>.
+              </p>
+              <div className="mt-3 flex h-4 overflow-hidden rounded-full bg-black/5">
+                <div className="bg-cardinal" style={{ width: `${(full / comm.length) * 100}%` }} />
+                <div className="bg-gold" style={{ width: `${(part / comm.length) * 100}%` }} />
+                <div className="bg-ink" style={{ width: `${(none / comm.length) * 100}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-black/45">Those are the questions Call a Trojan routes to real Trojans, and every answer they approve closes a gap.</p>
+            </div>
+          );
+        })()}
 
         <GapReport initial={d.gap} />
       </section>

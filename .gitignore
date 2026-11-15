@@ -9,3 +9,11 @@ out/
 .DS_Store
 src/generated/
 tsconfig.tsbuildinfo
+.chrome-profile/
+
+# Raw screenshots with personal info (USC ID / NetID): never commit or serve
+data/manual/screenshots/experience-usc.png
+data/manual/screenshots/experience-academics.png
+data/manual/screenshots/experience-home.png
+data/manual/screenshots/webreg-coursebin.png
+data/manual/screenshots/registration-summary.png

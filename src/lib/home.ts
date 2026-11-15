@@ -87,6 +87,6 @@ export function pickSuggestions(prefs: string[], audience: Audience, area?: stri
   return out.slice(0, 3);
 }
 
-export const HOME_PICKS = ["When does spring 2027 registration open", "how do I get D-clearance before", "Which professor should I take for CSCI 104"];
+export const HOME_PICKS = ["how do I get D-clearance before", "How do I get a USCard", "Which dorm is the quietest for transfer students"];
 export const FUTURE_PICKS = ["first-year deadlines for Early Action", "first-gen and can't afford a consultant", "Which first-gen support"];
-export const USG_PICKS = ["How does my club get USG funding", "Can USG fund my RSO's travel", "Which student orgs are good for meeting people"];
+export const USG_PICKS = ["I want to start a new student org", "Can USG fund my RSO's travel", "Which student orgs are good for meeting people"];

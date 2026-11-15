@@ -27,7 +27,7 @@ export default function UsgDesk() {
           Answers come from USG&apos;s official pages. What they don&apos;t cover goes to USG senators and org officers, and their answers are saved for the next student.
         </p>
         <div className="mt-8">
-          <AskExperience suggestions={pickSuggestions(USG_PICKS, "current", "usg-orgs")} orgSlug="usg" flags={{ showme: FLAGS.showme, call: FLAGS.call }} placeholder="Ask USG anything…" />
+          <AskExperience suggestions={pickSuggestions(USG_PICKS, "current", "usg-orgs")} orgSlug="usg" lockAudience flags={{ showme: FLAGS.showme, call: FLAGS.call }} placeholder="Ask USG anything…" />
         </div>
       </section>
     </main>

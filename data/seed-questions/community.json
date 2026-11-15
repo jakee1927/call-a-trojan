@@ -1,0 +1,200 @@
+[
+  {
+    "question": "I am a spring admit and still have no housing assignment. Should I be worried?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "housing"
+  },
+  {
+    "question": "Is Annenberg House too far from campus or in a unsafe area?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "housing"
+  },
+  {
+    "question": "Can a spring admit reassigned from Troy Hall to a freshman dorm?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "housing"
+  },
+  {
+    "question": "Is Troy Hall a good assignment for a spring-admit freshman?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "housing"
+  },
+  {
+    "question": "What is Parkside Apartments like for a spring admit?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "housing"
+  },
+  {
+    "question": "How do junior transfers meet people before spring semester starts?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "transfer"
+  },
+  {
+    "question": "I am an incoming transfer eyeing Marshall's progressive degree. Do I need the GMAT?",
+    "audience": "incoming",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "transfer"
+  },
+  {
+    "question": "Will USC add more BISC 330L lab spots if I need the class to graduate?",
+    "audience": "current",
+    "expected_route": "both",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: partly.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "registration"
+  },
+  {
+    "question": "Can two students swap PSYC 100 lab sections?",
+    "audience": "current",
+    "expected_route": "both",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: partly.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "registration"
+  },
+  {
+    "question": "If a W drop leaves me at 8 units, will I lose my dorm?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "housing"
+  },
+  {
+    "question": "Should I drop BISC 120 after bombing a midterm?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "registration"
+  },
+  {
+    "question": "How does the Marshall curve work in ECON 351, and is it worth taking a W?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "course-tips"
+  },
+  {
+    "question": "How much does CHEM 105A curve at the end of the semester?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "course-tips"
+  },
+  {
+    "question": "I am failing CSCI 570. What are my options this late?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "course-tips"
+  },
+  {
+    "question": "Is CS 656 networked systems useful and hands-on for AI/GPU networking?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "course-tips"
+  },
+  {
+    "question": "I am an architecture student thinking of dropping the major. Is that normal?",
+    "audience": "current",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "course-tips"
+  },
+  {
+    "question": "USC is my dream school but I cannot afford it. What do students do?",
+    "audience": "applicant",
+    "expected_route": "both",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: partly.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "financial-aid"
+  },
+  {
+    "question": "I got a full ride but am not sure about attending. How do others decide?",
+    "audience": "applicant",
+    "expected_route": "both",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: partly.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "financial-aid"
+  },
+  {
+    "question": "I just got accepted. What should I do before committing?",
+    "audience": "applicant",
+    "expected_route": "both",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: partly.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "admissions"
+  },
+  {
+    "question": "What does a successful USC appeal look like?",
+    "audience": "applicant",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "admissions"
+  },
+  {
+    "question": "What do current students wish prospective students knew?",
+    "audience": "applicant",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/USC, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "admissions"
+  },
+  {
+    "question": "I was rejected everywhere as a freshman. Is transferring into USC later realistic?",
+    "audience": "applicant",
+    "expected_route": "trojan",
+    "why": "Real recurring student question (r/TransferStudents, paraphrased); usc.edu answers it: no.",
+    "source_ids": [],
+    "origin": "community",
+    "topic": "transfer"
+  }
+]
