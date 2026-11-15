@@ -19,12 +19,12 @@ import { rest, twilioEnv, validTwilioSignature, xmlEscape, type TwilioEnv } from
 export const PHONE_MAX_SECONDS = Number(process.env.VOICE_PHONE_MAX_SECONDS || 270);
 
 export function phoneAiEnabled() {
-  return !!(process.env.OPENAI_API_KEY && process.env.OPENAI_PROJECT_ID && process.env.VOICE_PHONE_AI !== "0");
+  return !!(process.env.OPENAI_API_KEY && process.env.OPENAI_SIP_PROJECT_ID && process.env.VOICE_PHONE_AI !== "0");
 }
 
 export function sipUri(code: string) {
   const custom = process.env.OPENAI_SIP_URI; // full override, e.g. with ;secure=true
-  const base = custom || `sip:${process.env.OPENAI_PROJECT_ID}@sip.api.openai.com;transport=tls`;
+  const base = custom || `sip:${process.env.OPENAI_SIP_PROJECT_ID}@sip.api.openai.com;transport=tls`;
   // X- headers ride along as SIP headers; the webhook uses X-CT-Code to find this call.
   return `${base}?X-CT-Code=${encodeURIComponent(code)}`;
 }
