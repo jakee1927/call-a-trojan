@@ -69,23 +69,57 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(e));
   };
 
-  /** True while the model is producing a response; tool results wait for it to finish. */
+  // ---------- turn control ----------
+  // The session has create_response and interrupt_response off: OpenAI's turn detector only tells us when the
+  // caller spoke. We decide when the AI answers, one response at a time, so line noise or the AI's own echo can't
+  // cut it off or make it answer twice, and the caller can't interrupt it mid-sentence.
+
+  /** True while the model is producing a response. */
   let responding = false;
-  /** A tool result was sent but its response.create was rejected: send it again when the active response ends. */
-  let owed = false;
-  let lastCreate: "tool" | "filler" | null = null;
+  /** A response is needed as soon as the current one finishes (a caller turn, or a rejected tool response). */
+  let wantResponse = false;
+  let lastCreate: "tool" | "filler" | "turn" | null = null;
+  /** When the AI's last line finishes playing on the phone (estimated from its length, or observed). */
+  let aiQuietAt = 0;
+  let sawBufferEvents = false;
+  let bufferPlaying = false;
+  const aiSpeaking = () => responding || (sawBufferEvents ? bufferPlaying : Date.now() < aiQuietAt);
+  /** The caller turn being heard: did it start over the AI's speech, and how long was it? */
+  let speechOverlapped = false;
+  let speechStartMs = 0;
+  let speechLenMs = 0;
+  let speechEndedAt = 0; // wall-clock time the caller actually stopped talking
+  const SILENCE_MS = Number(process.env.VOICE_PHONE_SILENCE_MS || 550); // the detector reports the stop this much later
+  const dropped = new Set<string>(); // caller items we ignored
+  const awaiting = new Map<string, ReturnType<typeof setTimeout>>(); // short turns waiting for their transcript
+
+  const createResponse = (kind: "tool" | "turn") => {
+    responding = true;
+    wantResponse = false;
+    lastCreate = kind;
+    send({ type: "response.create" });
+  };
   const flush = () => {
-    if (responding) return;
+    if (responding) return false;
     for (const [id, p] of pending) {
       if (p.output !== null && doneResponses.has(p.resp)) {
         send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: id, output: JSON.stringify(p.output) } });
         pending.delete(id);
-        send({ type: "response.create" });
-        responding = true;
-        lastCreate = "tool";
-        return; // one at a time; the next result goes out when this response is done
+        createResponse("tool");
+        return true; // one at a time; the next result goes out when this response is done
       }
     }
+    return false;
+  };
+  /** The caller finished a real turn: answer it (after the current response, and not while a lookup is running). */
+  const respondToCaller = () => {
+    if (pending.size > 0) return; // the answer to the running lookup will take this turn into account
+    if (responding) wantResponse = true;
+    else createResponse("turn");
+  };
+  const dropTurn = (itemId: string) => {
+    dropped.add(itemId);
+    send({ type: "conversation.item.delete", item_id: itemId });
   };
 
   /** Rough time for the phone to finish playing the last AI line (~170 wpm) after generation finishes. */
@@ -194,12 +228,60 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
         lastResponseStart = Date.now();
         if (afterNextLine && !armedAfter) armedAfter = String((ev.response as { id?: string })?.id ?? "");
         break;
-      case "conversation.item.input_audio_transcription.completed":
-        if (String(ev.transcript ?? "").trim()) transcript.push({ role: "student", text: String(ev.transcript).trim(), at: new Date().toISOString() });
+
+      // --- the caller's side ---
+      case "input_audio_buffer.speech_started":
+        speechOverlapped = aiSpeaking();
+        speechStartMs = Number(ev.audio_start_ms ?? 0);
+        break;
+      case "input_audio_buffer.speech_stopped":
+        speechLenMs = Math.max(0, Number(ev.audio_end_ms ?? 0) - speechStartMs);
+        speechEndedAt = Date.now() - SILENCE_MS;
+        break;
+      case "input_audio_buffer.committed": {
+        const id = String(ev.item_id ?? "");
+        // Anything said over the AI's speech is ignored: echo, noise, or the caller talking over it. A turn that
+        // started over the AI but kept going well after it finished is the caller's real reply, so it is kept.
+        if (speechOverlapped && (aiSpeaking() || speechEndedAt < aiQuietAt + 400)) {
+          dropTurn(id);
+          break;
+        }
+        if (speechLenMs >= 1200) respondToCaller();
+        // A short blip may be a cough or line noise: wait briefly for its transcript before answering.
+        else awaiting.set(id, setTimeout(() => (awaiting.delete(id), respondToCaller()), 1200));
+        break;
+      }
+      case "conversation.item.input_audio_transcription.completed": {
+        const id = String(ev.item_id ?? "");
+        const text = String(ev.transcript ?? "").trim();
+        if (dropped.has(id)) break;
+        const waiting = awaiting.get(id);
+        if (waiting) {
+          clearTimeout(waiting);
+          awaiting.delete(id);
+          if (/[a-z0-9]/i.test(text)) respondToCaller();
+          else dropTurn(id); // no words in it: noise
+        }
+        if (/[a-z0-9]/i.test(text)) transcript.push({ role: "student", text, at: new Date().toISOString() });
+        break;
+      }
+
+      // --- the AI's side ---
+      case "output_audio_buffer.started":
+        sawBufferEvents = true;
+        bufferPlaying = true;
+        break;
+      case "output_audio_buffer.stopped":
+      case "output_audio_buffer.cleared":
+        sawBufferEvents = true;
+        bufferPlaying = false;
+        aiQuietAt = Date.now();
         break;
       case "response.output_audio_transcript.done": {
         const t = String(ev.transcript ?? "").trim();
         lastAiWords = t.split(/\s+/).length;
+        // Audio is generated faster than it plays: estimate when this line ends on the phone (~175 wpm).
+        if (!sawBufferEvents) aiQuietAt = Math.max(aiQuietAt, lastResponseStart + 400 + lastAiWords * 340);
         if (t) transcript.push({ role: "ai", text: t, at: new Date().toISOString() });
         break;
       }
@@ -211,11 +293,7 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
         const r = ev.response as { id?: string; status?: string; output?: { type: string }[] };
         doneResponses.add(String(r?.id));
         responding = false;
-        if (owed) {
-          owed = false;
-          responding = true;
-          send({ type: "response.create" });
-        } else flush();
+        if (!flush() && wantResponse) createResponse(lastCreate === "tool" ? "tool" : "turn");
         if (afterNextLine && armedAfter && armedAfter === r?.id) {
           const act = afterNextLine;
           afterNextLine = null;
@@ -227,15 +305,15 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       case "error":
         console.error("[voice/sideband] error event", JSON.stringify(ev.error).slice(0, 300));
         if (/active_response/.test(JSON.stringify(ev.error ?? ""))) {
-          // Another response (e.g. the caller spoke) is in progress: ours goes out when it finishes.
+          // A response is already in progress: ours goes out when it finishes (the filler line is just skipped).
           responding = true;
-          if (lastCreate === "tool") owed = true;
-        } else {
+          if (lastCreate !== "filler") wantResponse = true;
+        } else if (!/item.*(not found|does not exist)|not_found/i.test(JSON.stringify(ev.error ?? ""))) {
           // Any other rejection must not leave us waiting forever.
           setTimeout(() => {
             if (Date.now() - lastResponseStart < 300) return; // a real response just started
             responding = false;
-            flush();
+            if (!flush() && wantResponse) createResponse("turn");
           }, 400);
         }
         break;
