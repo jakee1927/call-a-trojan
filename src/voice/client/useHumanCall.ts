@@ -24,6 +24,7 @@ export function useHumanCall(opts: Opts) {
   const [elapsed, setElapsed] = useState(0);
   const [listenOnly, setListenOnlyState] = useState(false);
   const [endReason, setEndReason] = useState<string | null>(null);
+  const [trial, setTrial] = useState(false);
 
   const stateRef = useRef<HumanState>("idle");
   const ticket = useRef<string | null>(null);
@@ -126,6 +127,7 @@ export function useHumanCall(opts: Opts) {
         ticket.current = j.ticket;
         setHelper(j.helper);
         setTransport(j.transport);
+        setTrial(!!j.trial);
         set("ringing");
         tone(true);
 
@@ -224,5 +226,5 @@ export function useHumanCall(opts: Opts) {
 
   const resumeAudio = () => void audioEl.current?.play().then(() => setError(null)).catch(() => {});
 
-  return { state, error, helper, transport, elapsed, listenOnly, setListenOnly: applyListenOnly, start, end, endReason, resumeAudio };
+  return { state, error, helper, transport, trial, elapsed, listenOnly, setListenOnly: applyListenOnly, start, end, endReason, resumeAudio };
 }

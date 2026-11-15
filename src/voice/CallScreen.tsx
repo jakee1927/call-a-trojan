@@ -112,6 +112,9 @@ function HumanCall(props: Props & { plan: Extract<Plan, { mode: "human" }> }) {
       {(props.plan.question || props.prefill) && (
         <p className="max-w-md rounded-2xl bg-white/70 px-4 py-3 text-sm text-ink/70">“{props.plan.question ?? props.prefill}”</p>
       )}
+      {h.trial && h.state === "connected" && h.elapsed < 12 && (
+        <p className="max-w-md rounded-xl bg-gold/30 px-3 py-2 text-sm text-ink/80">Twilio trial line: the Trojan presses any key on their phone to connect.</p>
+      )}
       {h.error && <p className="max-w-md text-sm font-semibold text-cardinal">{h.error}</p>}
 
       <div className="mt-2 flex flex-wrap items-center justify-center gap-3">

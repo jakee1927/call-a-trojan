@@ -79,6 +79,24 @@ async function rest(env: TwilioEnv, path: string, form?: Record<string, string>)
   return json;
 }
 
+let accountType: Promise<string | null> | null = null;
+/** "Trial" or "Full" (cached). Trial calls play a preamble and wait for a keypress on the callee's phone. */
+export function twilioAccountType(env: TwilioEnv): Promise<string | null> {
+  if (!accountType) {
+    accountType = fetch(`https://api.twilio.com/2010-04-01/Accounts/${env.accountSid}.json`, {
+      headers: { Authorization: `Basic ${Buffer.from(`${env.keySid}:${env.keySecret}`).toString("base64")}` },
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (j?.type ? String(j.type) : null))
+      .catch(() => null);
+    void accountType.then((t) => {
+      if (!t) accountType = null; // retry next time
+    });
+  }
+  return accountType;
+}
+
 export async function createCall(env: TwilioEnv, to: string, twiml: string, timeoutSec = 30) {
   const r = await rest(env, "/Calls.json", { To: to, From: env.from, Twiml: twiml, Timeout: String(timeoutSec) });
   return { sid: String(r.sid), status: String(r.status) };

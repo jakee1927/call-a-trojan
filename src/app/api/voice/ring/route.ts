@@ -1,7 +1,7 @@
 import { broadcast } from "@/lib/supabase-server";
 import { insertCall, updateCall } from "@/voice/server/calls";
 import { decide, parseOverride, ringChannel, signTicket } from "@/voice/server/pick";
-import { conferenceTwiml, createCall, twilioEnv, voiceAccessToken } from "@/voice/server/twilio";
+import { conferenceTwiml, createCall, twilioAccountType, twilioEnv, voiceAccessToken } from "@/voice/server/twilio";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,11 +43,12 @@ export async function POST(req: Request) {
       ? `Call a Trojan. A student is asking: ${question.slice(0, 140)}. Connecting you now.`
       : "Call a Trojan. A student is on the line. Connecting you now.";
     try {
-      const pstn = await createCall(env, helperPhone, conferenceTwiml(room, { say: whisper }), 30);
+      const [pstn, acct] = await Promise.all([createCall(env, helperPhone, conferenceTwiml(room, { say: whisper }), 30), twilioAccountType(env)]);
       await updateCall(callId, { twilio_call_sid: pstn.sid });
       return Response.json({
         call_id: callId,
         transport: "twilio",
+        trial: acct === "Trial",
         helper: plan.helper,
         room,
         token: voiceAccessToken(env, `student_${callId.replace(/-/g, "").slice(0, 20)}`),
