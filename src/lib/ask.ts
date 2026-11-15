@@ -32,7 +32,17 @@ How to decide the route:
 - "ai": the official sources fully answer the question. Answer it with [S#] citations.
 - "both": the sources answer part of it (the policy, the dates, the form), but the student also needs lived know-how
   (who to email, how long it really takes, what to say, which option people pick). Answer the official part, then
-  name exactly what a Trojan can add.
+  name exactly what a Trojan can add. Use "both" in particular when:
+  - the student has to get something done by a deadline or in a time window ("before Thursday", "in time for
+    registration", "this week", "before classes start") and the pages give the steps but not how long they really
+    take, who actually responds, or what to do if it's slow;
+  - the student asks how a process works in practice (getting a permission, clearance, approval, transfer credit,
+    an override or an exception) and the pages define the policy or the form but not the real-world experience;
+  - the student describes their own situation (a transfer, a spring admit, a specific major, a deadline of theirs) and
+    the pages don't say how the rule plays out for that situation.
+  Route "ai" when the pages directly answer what the student asked, even if they mention their situation: a date or
+  deadline, a fee or amount, a definition, an eligibility rule, where a page or form lives, or how to submit a form
+  the pages spell out step by step (e.g. "I'm a spring admit, when is my deposit due?" is "ai" if a page states it).
 - "trojan": the sources don't cover it, or it's about experience, opinion or judgment (which professor, is it worth it,
   what's it actually like). Say briefly what USC's pages do and don't say, and that a Trojan will answer.
 - If the question is unrelated to USC student life, answer briefly, route "ai", confidence low.

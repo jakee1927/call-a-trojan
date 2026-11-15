@@ -203,12 +203,32 @@ export function streamText(r: LlmRequest): TextStream {
   let refused = false;
 
   async function* openaiDeltas() {
+    // Retry rate limits / overloads, but only before any text has been sent to the caller.
+    for (let attempt = 0; ; attempt++) {
+      let sent = false;
+      try {
+        yield* openaiAttempt(() => (sent = true));
+        return;
+      } catch (e) {
+        const err = e as { status?: number; code?: string; message?: string };
+        const retryable = err.code === "rate_limit_exceeded" || err.status === 429 || (err.status ?? 0) >= 500;
+        if (sent || !retryable || attempt >= 3) throw e;
+        const hinted = Number(/try again in ([\d.]+)s/.exec(err.message ?? "")?.[1]);
+        await new Promise((res) => setTimeout(res, (hinted > 0 ? hinted * 1000 : 800) + 400 * attempt + Math.random() * 400));
+      }
+    }
+  }
+
+  async function* openaiAttempt(onSend: () => void) {
     const stream = await openai().responses.create({
       ...openaiBase(r),
       stream: true,
     });
     for await (const ev of stream) {
-      if (ev.type === "response.output_text.delta") yield ev.delta;
+      if (ev.type === "response.output_text.delta") {
+        onSend();
+        yield ev.delta;
+      }
       else if (ev.type === "response.refusal.delta") refused = true;
       else if (
         ev.type === "response.completed" ||
