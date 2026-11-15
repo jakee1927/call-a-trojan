@@ -45,11 +45,27 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
   let lastAiWords = 0;
   let endReason = "caller_hung_up";
 
-  // Auth via subprotocol: works with Node's built-in WebSocket on any version (no custom headers needed).
-  const ws = new WebSocket(`wss://api.openai.com/v1/realtime?call_id=${encodeURIComponent(o.openaiCallId)}`, [
-    "realtime",
-    `openai-insecure-api-key.${key}`,
-  ]);
+  const ws = await openSideband(o.openaiCallId, key);
+  if (!ws) {
+    // Without the sideband the AI can't greet, look anything up or transfer: hand the caller to the human fallback.
+    console.error("[voice/sideband] could not connect; moving the caller to the human fallback");
+    await mergeMeta(o.rowId, { sideband_failed: true });
+    const env = twilioEnv();
+    if (parentSid && env) {
+      const url = `${siteUrl()}/api/voice/inbound/after?stage=noai&t=${encodeURIComponent(ticket)}`;
+      await redirectCall(env, parentSid, `<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${xmlEscape(url)}</Redirect></Response>`).catch((e) =>
+        console.error("[voice/sideband] fallback redirect", e),
+      );
+    } else await hangupOpenAI(o.openaiCallId).catch(() => {});
+    return;
+  }
+  // Greet the instant the sideband is up: the caller hears the AI introduce itself right after pickup.
+  ws.send(
+    JSON.stringify({
+      type: "response.create",
+      response: { instructions: `Say this first, warmly and naturally, word for word: "${PHONE_GREETING}" Don't call any tools yet.` },
+    }),
+  );
   const send = (e: Record<string, unknown>) => {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(e));
   };
@@ -199,12 +215,6 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
       clearTimeout(hard);
       resolve();
     };
-    ws.onopen = () => {
-      send({
-        type: "response.create",
-        response: { instructions: `Say this first, warmly and naturally, word for word: "${PHONE_GREETING}" Don't call any tools yet.` },
-      });
-    };
     ws.onmessage = (m) => {
       try {
         onEvent(JSON.parse(String(m.data)));
@@ -227,4 +237,36 @@ export async function runSideband(o: { openaiCallId: string; rowId: string }) {
     transcript,
     metrics: { ...(fresh?.metrics ?? {}), toolMs, end_reason: endReason },
   });
+}
+
+/**
+ * Connects to a SIP call's sideband. Auth must be the Authorization header: the call_id endpoint rejects the
+ * browser-style "openai-insecure-api-key" subprotocol (503). Retries briefly in case the call isn't joinable yet.
+ */
+async function openSideband(openaiCallId: string, key: string): Promise<WebSocket | null> {
+  const url = `wss://api.openai.com/v1/realtime?call_id=${encodeURIComponent(openaiCallId)}`;
+  for (const wait of [0, 300, 700, 1500, 2500]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    const ws = await new Promise<WebSocket | null>((resolve) => {
+      // Node's built-in WebSocket (undici) accepts { headers } as its second argument.
+      const w = new WebSocket(url, { headers: { Authorization: `Bearer ${key}` } } as unknown as string[]);
+      const t = setTimeout(() => {
+        try {
+          w.close();
+        } catch {}
+        resolve(null);
+      }, 5000);
+      w.onopen = () => {
+        clearTimeout(t);
+        resolve(w);
+      };
+      w.onerror = () => {
+        clearTimeout(t);
+        resolve(null);
+      };
+    });
+    if (ws) return ws;
+    console.error(`[voice/sideband] connect attempt failed (waited ${wait} ms)`);
+  }
+  return null;
 }

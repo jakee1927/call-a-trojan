@@ -49,10 +49,12 @@ export async function POST(req: Request) {
     await mergeMeta(row.id, { accept_error: String(e).slice(0, 300) });
     return new Response(null, { status: 200 }); // the Dial action falls back to a human
   }
-  await updateCall(row.id, { status: "connected", answered_at: new Date().toISOString() });
-  await mergeMeta(row.id, { openai_call_id: openaiCallId });
-
+  // Start the sideband first so the greeting isn't held up by bookkeeping writes.
   const rowId = row.id;
   after(() => runSideband({ openaiCallId, rowId }).catch((e) => console.error("[voice/sideband]", e)));
+  after(async () => {
+    await updateCall(rowId, { status: "connected", answered_at: new Date().toISOString() });
+    await mergeMeta(rowId, { openai_call_id: openaiCallId });
+  });
   return new Response(null, { status: 200 });
 }
