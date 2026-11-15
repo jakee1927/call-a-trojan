@@ -36,15 +36,15 @@ export default function CallScreen(props: Props) {
   }, [props.questionId, props.handoffId, props.call]);
 
   return (
-    <main className="poster-bg min-h-screen">
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 pb-8 pt-6">
+    <main className="min-h-screen">
+      <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-5 pb-8 pt-5">
         <header className="mb-6 flex items-center justify-between">
-          <Link href={props.questionId ? `/q/${props.questionId}` : "/"} className="text-sm font-semibold text-ink/60 hover:text-ink">
-            ← Back
+          <Link href={props.questionId ? `/q/${props.questionId}` : "/"} className="btn !py-1">
+            Back
           </Link>
-          <span className="text-sm font-black tracking-tight text-cardinal">Call a Trojan</span>
+          <span className="display text-xl text-cardinal">Call a Trojan</span>
         </header>
-        {planErr && <p className="text-center text-cardinal">{planErr}</p>}
+        {planErr && <p className="text-center text-[#b42318]">{planErr}</p>}
         {!plan && !planErr && <Dialing label="Finding a Trojan…" />}
         {plan?.mode === "human" && <HumanCall {...props} plan={plan} />}
         {plan?.mode === "ai" && <AiCall {...props} plan={plan} />}
@@ -55,9 +55,9 @@ export default function CallScreen(props: Props) {
 
 function Dialing({ label }: { label: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-ink/70">
-      <span className="h-14 w-14 animate-spin rounded-full border-4 border-cardinal/20 border-t-cardinal" />
-      <p className="font-semibold">{label}</p>
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted">
+      <span aria-hidden className="ringing text-6xl">📞</span>
+      <p className="display text-2xl text-ink">{label}</p>
     </div>
   );
 }
@@ -97,25 +97,25 @@ function HumanCall(props: Props & { plan: Extract<Plan, { mode: "human" }> }) {
 
   return (
     <section className="flex flex-1 flex-col items-center justify-center gap-6 text-center" onClick={h.resumeAudio}>
-      <p className="rounded-full bg-cardinal px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">Real Trojan · live call</p>
-      <div className={`rounded-full p-1.5 ${h.state === "ringing" || h.state === "dialing" ? "animate-pulse ring-4 ring-gold" : h.state === "connected" ? "ring-4 ring-green-500" : ""}`}>
-        <Avatar name={trojan.name} url={trojan.avatar_url} size={160} online={h.state === "connected"} />
+      <p className="text-[15px] text-muted">Live call with a real Trojan</p>
+      <div className={`rounded-full border-[3px] border-ink bg-white p-1 shadow-[6px_6px_0_var(--ink)] ${h.state === "ringing" || h.state === "dialing" ? "ringing" : h.state === "connected" ? "bob" : ""}`}>
+        <Avatar name={trojan.name} url={trojan.avatar_url} size={128} />
       </div>
       <div>
-        <h1 className="text-4xl font-black tracking-tight text-ink">{trojan.name}</h1>
-        <p className="mt-1 text-ink/60">{[trojan.year, trojan.major].filter(Boolean).join(" · ")}</p>
-        {trojan.tags?.length > 0 && <p className="mt-1 text-sm text-ink/50">Ask me about {trojan.tags.slice(0, 3).join(", ")}</p>}
+        <h1 className="display text-5xl">{trojan.name}</h1>
+        <p className="mt-1 text-muted">{[trojan.year, trojan.major].filter(Boolean).join(" · ")}</p>
+        {trojan.tags?.length > 0 && <p className="mt-1 text-sm text-muted">Ask me about {trojan.tags.slice(0, 3).join(", ")}</p>}
       </div>
-      <p className={`text-2xl font-bold tabular-nums ${h.state === "connected" ? "text-green-700" : "text-cardinal"}`} aria-live="polite">
+      <p className={`display text-2xl tabular-nums ${h.state === "connected" ? "text-ok" : "text-cardinal"}`} aria-live="polite">
         {label}
       </p>
       {(props.plan.question || props.prefill) && (
-        <p className="max-w-md rounded-2xl bg-white/70 px-4 py-3 text-sm text-ink/70">“{props.plan.question ?? props.prefill}”</p>
+        <p className="max-w-md text-[15px] text-muted">“{props.plan.question ?? props.prefill}”</p>
       )}
       {h.trial && h.state === "connected" && h.elapsed < 12 && (
-        <p className="max-w-md rounded-xl bg-gold/30 px-3 py-2 text-sm text-ink/80">Twilio trial line: the Trojan presses any key on their phone to connect.</p>
+        <p className="max-w-md rounded-lg bg-gold-tint px-3 py-2 text-sm">Twilio trial line: the Trojan presses any key on their phone to connect.</p>
       )}
-      {h.error && <p className="max-w-md text-sm font-semibold text-cardinal">{h.error}</p>}
+      {h.error && <p className="max-w-md text-sm font-semibold text-[#b42318]">{h.error}</p>}
 
       <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
         {(h.state === "idle" || h.state === "ended" || h.state === "error") && (
@@ -124,23 +124,23 @@ function HumanCall(props: Props & { plan: Extract<Plan, { mode: "human" }> }) {
               unlockAudio();
               void h.start({ listenOnly: h.listenOnly || props.stage });
             }}
-            className="rounded-full bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:bg-green-700"
+            data-fx="boom" className="btn btn-go btn-lg"
           >
-            📞 {h.state === "idle" ? `Call ${trojan.name.split(" ")[0]}` : "Call again"}
+            {h.state === "idle" ? `Call ${trojan.name.split(" ")[0]}` : "Call again"}
           </button>
         )}
         {(h.state === "dialing" || h.state === "ringing" || h.state === "connected") && (
-          <button onClick={() => h.end("student_hung_up")} className="rounded-full bg-red-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:bg-red-700">
+          <button onClick={() => h.end("student_hung_up")} className="btn btn-stop btn-lg">
             Hang up
           </button>
         )}
-        <label className="flex cursor-pointer items-center gap-2 rounded-full bg-white/80 px-4 py-3 text-sm font-semibold text-ink/80">
+        <label className="flex cursor-pointer items-center gap-2 px-2 py-3 text-[15px]">
           <input type="checkbox" checked={h.listenOnly} onChange={(e) => h.setListenOnly(e.target.checked)} className="h-4 w-4 accent-cardinal" />
           Listen only (mute this mic)
         </label>
       </div>
       {h.transport === "app" && h.state === "ringing" && (
-        <p className="text-xs text-ink/50">Ringing {trojan.name.split(" ")[0]}&apos;s Trojan app…</p>
+        <p className="text-sm text-muted">Ringing {trojan.name.split(" ")[0]}&apos;s Trojan app…</p>
       )}
     </section>
   );
@@ -177,38 +177,35 @@ function AiCall(props: Props & { plan: Extract<Plan, { mode: "ai" }> }) {
   return (
     <section className="flex flex-1 flex-col gap-4" onClick={ai.resumeAudio}>
       {/* Persistent disclosure badge */}
-      <div className="sticky top-2 z-10 flex items-center justify-between gap-3 rounded-2xl border border-gold bg-ink px-4 py-3 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold text-lg font-black text-ink">AI</span>
-          <div>
-            <p className="font-bold leading-tight">AI Trojan (stand-in)</p>
-            <p className="text-xs text-white/70">Not a real student · answers from USC&apos;s official pages</p>
-          </div>
+      <div className="sticker sticker-ink sticky top-2 z-10 flex items-center justify-between gap-4 px-4 py-3">
+        <div>
+          <p className="display text-xl leading-tight text-gold">AI Trojan (stand-in)</p>
+          <p className="text-sm text-white/80">Not a real student. Answers from USC&apos;s official pages.</p>
         </div>
-        <div className="text-right text-sm tabular-nums">
+        <div className="shrink-0 text-right text-[15px] tabular-nums">
           {live ? (
             <>
               <span className="live-dot mr-2 align-middle" />
               {mmss(ai.elapsed)}
-              <span className="block text-[11px] text-white/60">{mmss(left)} left</span>
+              <span className="block text-sm text-white/75">{mmss(left)} left</span>
             </>
           ) : (
-            <span className="text-white/70">{ai.status === "connecting" ? "Connecting…" : ai.status === "ended" ? "Ended" : ""}</span>
+            <span className="text-white/80">{ai.status === "connecting" ? "Connecting…" : ai.status === "ended" ? "Ended" : ""}</span>
           )}
         </div>
       </div>
 
       {props.plan.humanUnavailable && (
-        <p className="rounded-xl bg-gold/30 px-3 py-2 text-sm text-ink/80">{props.plan.humanUnavailable} You&apos;re talking to the AI stand-in.</p>
+        <p className="rounded-lg bg-gold-tint px-3 py-2 text-[15px]">{props.plan.humanUnavailable} You&apos;re talking to the AI stand-in.</p>
       )}
       {!props.plan.humanUnavailable && ai.status !== "live" && ai.status !== "ended" && (
-        <p className="text-center text-sm text-ink/60">No human Trojan is on shift right now, so an AI stand-in will pick up. It says so first.</p>
+        <p className="text-[15px] text-muted">No human Trojan is on shift right now, so an AI stand-in will pick up. It says so first.</p>
       )}
 
       {/* Transcript */}
-      <div ref={scroller} className="frost flex min-h-[40vh] flex-1 flex-col gap-3 overflow-y-auto rounded-3xl p-4 shadow-sm">
+      <div ref={scroller} className="sticker flex min-h-[40vh] flex-1 flex-col gap-3 overflow-y-auto p-4">
         {ai.lines.length === 0 && (
-          <p className="m-auto max-w-xs text-center text-sm text-ink/50">
+          <p className="m-auto max-w-xs text-center text-[15px] text-muted">
             {ai.status === "connecting" ? "Connecting to the AI Trojan…" : ai.status === "ended" ? "No transcript." : "The live transcript shows up here."}
           </p>
         )}
@@ -218,14 +215,14 @@ function AiCall(props: Props & { plan: Extract<Plan, { mode: "ai" }> }) {
             <Bubble key={l.id} line={l} />
           ))}
         {ai.toolBusy && (
-          <p className="self-start rounded-full bg-gold/30 px-3 py-1 text-xs font-semibold text-ink/70">
-            <span className="mr-1 inline-block animate-spin">⟳</span> {ai.toolBusy}
+          <p className="self-start text-sm text-muted">
+            {ai.toolBusy}
           </p>
         )}
       </div>
 
-      {ai.error && <p className="text-center text-sm font-semibold text-cardinal">{ai.error}</p>}
-      {!props.plan.ai_ready && <p className="text-center text-sm text-cardinal">The AI Trojan isn&apos;t configured on this deploy yet.</p>}
+      {ai.error && <p className="text-center text-sm font-semibold text-[#b42318]">{ai.error}</p>}
+      {!props.plan.ai_ready && <p className="text-center text-sm text-[#b42318]">The AI Trojan isn&apos;t configured on this deploy yet.</p>}
 
       <div className="flex flex-wrap items-center justify-center gap-3">
         {(ai.status === "idle" || ai.status === "ended" || ai.status === "error") && props.plan.ai_ready && (
@@ -234,47 +231,47 @@ function AiCall(props: Props & { plan: Extract<Plan, { mode: "ai" }> }) {
               unlockAudio();
               void ai.start();
             }}
-            className="rounded-full bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:bg-green-700"
+            data-fx="boom" className="btn btn-go btn-lg"
           >
-            📞 {ai.status === "idle" ? "Start call" : "Call again"}
+            {ai.status === "idle" ? "Start call" : "Call again"}
           </button>
         )}
         {(ai.status === "connecting" || live) && (
           <>
-            <button onClick={() => ai.hangUp("student_hung_up")} className="rounded-full bg-red-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:bg-red-700">
+            <button onClick={() => ai.hangUp("student_hung_up")} className="btn btn-stop btn-lg">
               Hang up
             </button>
             <button
               onClick={() => ai.setMuted(!ai.micMuted)}
-              className={`rounded-full px-5 py-4 text-sm font-bold ${ai.micMuted ? "bg-cardinal text-white" : "bg-white/80 text-ink/80"}`}
+              className={`btn btn-lg ${ai.micMuted ? "btn-dark" : "btn-line"}`}
             >
-              {ai.micMuted ? "🔇 Muted" : "🎙️ Mute"}
+              {ai.micMuted ? "Unmute" : "Mute"}
             </button>
           </>
         )}
         {live && (
-          <span className="text-sm text-ink/60">
+          <span className="text-[15px] text-muted">
             {ai.speaking === "ai" ? "AI Trojan is talking…" : ai.speaking === "student" ? "Listening…" : ai.toolBusy ? "" : "Go ahead, ask anything about USC."}
           </span>
         )}
       </div>
 
       {ai.status === "ended" && (
-        <div className="rounded-2xl bg-white/80 p-4 text-center text-sm text-ink/80">
+        <div className="border-t border-line pt-4 text-center text-[15px]">
           {ai.handoff ? (
             <p>
               Saved for a real Trojan.{" "}
               {questionLink && (
-                <Link className="font-bold text-cardinal underline" href={`/q/${questionLink}`}>
-                  Watch for their reply →
+                <Link className="link font-semibold" href={`/q/${questionLink}`}>
+                  Watch for their reply
                 </Link>
               )}
             </p>
           ) : questionLink ? (
             <p>
               Want a human take?{" "}
-              <Link className="font-bold text-cardinal underline" href={`/q/${questionLink}`}>
-                Open your question and ask a real Trojan →
+              <Link className="link font-semibold" href={`/q/${questionLink}`}>
+                Open your question and ask a real Trojan
               </Link>
             </p>
           ) : (
@@ -284,7 +281,7 @@ function AiCall(props: Props & { plan: Extract<Plan, { mode: "ai" }> }) {
       )}
 
       {(props.stage || process.env.NODE_ENV !== "production") && ai.metrics.turnMs.length + ai.metrics.toolMs.length > 0 && (
-        <p className="text-center font-mono text-[11px] text-ink/40">
+        <p className="text-center text-xs tabular-nums text-muted">
           connect {ai.metrics.connectMs ?? "–"}ms · speech→audio {ai.metrics.turnMs.join(", ")}ms · lookup {ai.metrics.toolMs.join(", ")}ms
         </p>
       )}
@@ -293,18 +290,18 @@ function AiCall(props: Props & { plan: Extract<Plan, { mode: "ai" }> }) {
 }
 
 function Bubble({ line }: { line: Line }) {
-  if (line.role === "system") return <p className="self-center rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">{line.text}</p>;
+  if (line.role === "system") return <p className="self-center text-sm text-muted">{line.text}</p>;
   const me = line.role === "student";
   return (
     <div className={`flex max-w-[85%] flex-col ${me ? "self-end items-end" : "self-start items-start"}`}>
-      <span className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink/40">{me ? "You" : "AI Trojan (stand-in)"}</span>
-      <p className={`rounded-2xl px-4 py-2 text-[15px] leading-snug ${me ? "bg-cardinal text-white" : "bg-white text-ink shadow-sm"} ${line.done ? "" : "opacity-80"}`}>
+      <span className="mb-0.5 text-[13px] text-muted">{me ? "You" : "AI Trojan (stand-in)"}</span>
+      <p className={`pop rounded-2xl border-2 border-ink px-3.5 py-2 text-[15px] font-medium leading-snug ${me ? "rounded-br-sm bg-cardinal text-white" : "rounded-bl-sm bg-gold-tint text-ink"} ${line.done ? "" : "opacity-80"}`}>
         {line.text || (me ? "…" : "")}
       </p>
       {!me && line.sources && line.sources.length > 0 && line.done && (
-        <div className="mt-1 flex flex-wrap gap-1">
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
           {line.sources.slice(0, 3).map((s) => (
-            <a key={s.ref} href={s.url} target="_blank" rel="noreferrer" className="rounded-full bg-ink/5 px-2 py-0.5 text-[11px] text-cardinal hover:bg-ink/10">
+            <a key={s.ref} href={s.url} target="_blank" rel="noreferrer" className="link text-[13px]">
               {s.title}
             </a>
           ))}

@@ -47,18 +47,20 @@ function SignIn({ onDone }: { onDone: () => void }) {
     if (!r.ok) return setErr(d.error ?? "Couldn't sign in");
     onDone();
   }
+  const dark = "field !py-3 !text-lg";
   return (
-    <div className="mx-auto max-w-sm px-5 pt-16">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold text-3xl font-black text-cardinal">T</div>
-      <h1 className="text-3xl font-black leading-tight text-white">Answer the question you once had.</h1>
-      <p className="mt-2 text-white/70">Sign in to the Trojan app. Students who are stuck get your briefing card; your answer helps every student after them.</p>
+    <div className="mx-auto max-w-sm px-5 pt-[max(4rem,env(safe-area-inset-top))]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/usc/sc.svg" alt="USC" width={54} height={80} className="bob h-20 w-auto" />
+      <h1 className="display mt-5 text-[2.6rem] text-gold">Answer the question you once had.</h1>
+      <p className="mt-3 text-white/85">Students who are stuck get sent to you with a short briefing. Your answer helps every student after them.</p>
       <form onSubmit={go} className="mt-8 space-y-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoComplete="name" className="w-full rounded-xl bg-white/10 px-4 py-3.5 text-lg text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-gold" />
-        <input value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Helper passcode" type="password" className="w-full rounded-xl bg-white/10 px-4 py-3.5 text-lg text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-gold" />
-        <button disabled={busy} className="w-full rounded-xl bg-gold py-3.5 text-lg font-black text-cardinal disabled:opacity-60">{busy ? "Signing in…" : "I'm a Trojan"}</button>
-        {err && <p className="text-sm text-gold">{err}</p>}
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" aria-label="Your name" autoComplete="name" className={dark} />
+        <input value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Helper passcode" aria-label="Helper passcode" type="password" className={dark} />
+        <button disabled={busy} data-fx="rain" className="btn btn-gold btn-lg w-full">{busy ? "Signing in…" : "I'm a Trojan ✌️"}</button>
+        {err && <p className="text-sm font-semibold text-gold">{err}</p>}
       </form>
-      <p className="mt-6 text-xs text-white/40">Demo sign-in uses a shared passcode. The roadmap uses USC SSO.</p>
+      <p className="mt-6 text-sm text-white/75">Demo sign-in uses a shared passcode. The roadmap uses USC SSO.</p>
     </div>
   );
 }
@@ -93,12 +95,12 @@ function Profile({ me, onSaved }: { me: Helper; onSaved: (h: Helper) => void }) 
   }
   const field = (k: keyof typeof f, label: string, ph: string, type = "text") => (
     <label className="block">
-      <span className="text-xs font-bold uppercase tracking-wider text-black/45">{label}</span>
-      <input type={type} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} placeholder={ph} className="mt-1 w-full rounded-xl bg-black/5 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-cardinal/30" />
+      <span className="text-sm font-semibold">{label}</span>
+      <input type={type} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} placeholder={ph} className="field mt-1" />
     </label>
   );
   return (
-    <form onSubmit={save} className="space-y-3">
+    <form onSubmit={save} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         {field("name", "Name", "Daniel")}
         {field("year", "Class year", "2027")}
@@ -108,7 +110,7 @@ function Profile({ me, onSaved }: { me: Helper; onSaved: (h: Helper) => void }) 
       {field("bio", "One line about you", "Transferred from SMC in 2025")}
       {field("phone", "Phone for calls (private, never shown)", "+1 213 555 0100", "tel")}
       {field("avatar_url", "Photo URL (optional)", "https://…")}
-      <button disabled={saving} className="w-full rounded-xl bg-cardinal py-3 font-black text-white disabled:opacity-60">{saved ? "Saved ✓" : saving ? "Saving…" : "Save profile"}</button>
+      <button disabled={saving} data-fx="boom" className="btn btn-primary w-full">{saved ? "Saved ✌️" : saving ? "Saving…" : "Save profile"}</button>
     </form>
   );
 }
@@ -189,103 +191,108 @@ export function TrojanApp() {
   const mine = inbox.filter((i) => i.helper_id === me.id && i.status !== "open");
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
-      <div className="bg-cardinal px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <div className="mx-auto max-w-xl">
-          <div className="flex items-center gap-3">
-            <Avatar name={me.name} url={me.avatar_url} size={44} online={onShift} />
-            <div className="min-w-0">
-              <div className="truncate text-lg font-black">{me.name}</div>
-              <div className="truncate text-xs text-white/70">{[me.major, me.year].filter(Boolean).join(" · ") || "Add your major"}</div>
-            </div>
-            <button onClick={() => setEditing((v) => !v)} className="ml-auto rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold">{editing ? "Done" : "Profile"}</button>
+    <div className="min-h-screen pb-16">
+      <div className="bg-cardinal px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+        <div className="mx-auto flex max-w-xl items-center gap-3">
+          <Avatar name={me.name} url={me.avatar_url} size={40} online={onShift} />
+          <div className="min-w-0 flex-1">
+            <div className="display truncate text-2xl text-gold">{me.name}</div>
+            <div className="truncate text-sm text-white/80">{[me.major, me.year].filter(Boolean).join(" · ") || "Add your major"}</div>
           </div>
-          <button
-            onClick={toggleShift}
-            className={`mt-5 flex w-full items-center justify-between rounded-2xl px-5 py-4 text-left transition ${onShift ? "bg-gold text-cardinal" : "bg-white/10 text-white"}`}
-          >
-            <span>
-              <span className="block text-lg font-black">{onShift ? "You're on shift" : "Off shift"}</span>
-              <span className="block text-xs opacity-75">
-                {onShift ? `Students see you online until ${new Date(me.on_shift_until!).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Tap to go online for 3 hours"}
-              </span>
-            </span>
-            <span className={`relative h-8 w-14 rounded-full ${onShift ? "bg-cardinal" : "bg-white/25"}`}>
-              <span className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-all ${onShift ? "left-7" : "left-1"}`} />
-            </span>
+          <button onClick={() => setEditing((v) => !v)} className="btn btn-gold !py-1.5">
+            {editing ? "Done" : "Profile"}
           </button>
-          {me.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="text-xs text-white/60">Ask me about:</span>
-              {me.tags.map((t) => (
-                <span key={t} className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">{t}</span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
       {flash && (
-        <div className="fixed inset-x-3 top-3 z-50 mx-auto max-w-xl rounded-2xl bg-ink p-4 text-white shadow-2xl">
-          <div className="text-xs font-bold uppercase tracking-wider text-gold">New question</div>
-          <div className="font-bold">{flash}</div>
+        <div role="status" className="sticker sticker-ink slam fixed inset-x-3 top-3 z-50 mx-auto max-w-xl px-4 py-3">
+          <div className="display text-lg text-gold">🚨 New question</div>
+          <div className="font-semibold">{flash}</div>
         </div>
       )}
 
-      <div className="mx-auto max-w-xl px-4">
+      <div className="mx-auto max-w-xl px-5">
+        <button
+          onClick={toggleShift}
+          role="switch"
+          aria-checked={onShift}
+          data-fx="boom"
+          className={`sticker grab mt-6 flex w-full items-center justify-between gap-4 px-5 py-4 text-left ${onShift ? "sticker-cardinal tilt-r" : "tilt-l"}`}
+        >
+          <span>
+            <span className="display block text-2xl">{onShift ? "You're on shift ✌️" : "Off shift 😴"}</span>
+            <span className="block text-sm font-medium opacity-90">
+              {onShift ? `Students see you online until ${new Date(me.on_shift_until!).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Tap to go online for 3 hours"}
+            </span>
+          </span>
+          <span className={`relative h-8 w-14 shrink-0 rounded-full border-[2.5px] border-ink transition-colors ${onShift ? "bg-gold" : "bg-wash"}`}>
+            <span className={`absolute top-0.5 h-6 w-6 rounded-full border-[2.5px] border-ink bg-white transition-all duration-300 ${onShift ? "left-[1.6rem]" : "left-0.5"}`} />
+          </span>
+        </button>
+        {me.tags.length > 0 && <p className="mt-4 text-sm font-semibold">Students are sent to you for {me.tags.join(", ")}.</p>}
+
         {editing && (
-          <div className="-mt-3 rounded-2xl bg-white p-4 shadow-lg">
+          <div className="sticker pop mt-6 p-5">
             <Profile me={me} onSaved={(h) => { setMe(h); setEditing(false); }} />
           </div>
         )}
 
-        <h2 className="mb-2 mt-6 flex items-center gap-2 text-sm font-black uppercase tracking-[0.15em] text-black/50">
-          <span className="live-dot" /> Inbox · {open.length} waiting
+        <h2 className="display mt-10 text-3xl">
+          Inbox <span className="text-cardinal">· {open.length} waiting</span>
         </h2>
-        {open.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-black/45">No one is waiting. You&apos;ll get a buzz on Discord when someone needs a Trojan.</p>}
-        <div className="space-y-3">
-          {open.map((i) => (
-            <Link key={i.id} href={`/trojan/h/${i.id}`} className="block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 active:scale-[0.99]">
-              <div className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider">
-                <span className="rounded-full bg-ink px-2 py-0.5 text-gold">{i.questions?.audience ?? "student"}</span>
-                {i.questions?.image_url && <span className="text-black/45">📷 screenshot</span>}
-                <span className="ml-auto text-black/40">{ago(i.created_at)}</span>
-              </div>
-              <div className="text-lg font-black leading-snug">{i.briefing?.title ?? i.questions?.text}</div>
-              {i.briefing ? (
-                <p className="mt-1 text-sm text-black/60"><span className="font-bold text-cardinal">Still open: </span>{i.briefing.still_open}</p>
-              ) : (
-                <p className="mt-1 text-sm text-black/40">The AI is writing the briefing…</p>
-              )}
-              {i.briefing?.tags?.length ? (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {i.briefing.tags.map((t) => (
-                    <span key={t} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${me.tags.includes(t) ? "bg-gold text-ink" : "bg-black/5 text-black/55"}`}>{t}</span>
-                  ))}
+        {open.length === 0 && <p className="mt-2 font-medium">No one is waiting. You&apos;ll get a buzz on Discord when someone needs a Trojan.</p>}
+        <ul className="mt-4 space-y-5 empty:hidden">
+          {open.map((i, n) => (
+            <li key={i.id} className="drop" style={{ "--i": n } as React.CSSProperties}>
+              <Link href={`/trojan/h/${i.id}`} className={`sticker grab group block p-4 ${n % 2 ? "tilt-r" : "tilt-l"}`}>
+                <div className="flex gap-2 text-sm text-muted">
+                  <span className="capitalize">{i.questions?.audience ?? "student"}</span>
+                  {i.questions?.image_url && <span>· with a screenshot</span>}
+                  <span className="ml-auto">{ago(i.created_at)}</span>
                 </div>
-              ) : null}
-            </Link>
+                <div className="mt-1 text-[17px] font-bold leading-snug group-hover:text-cardinal">{i.briefing?.title ?? i.questions?.text}</div>
+                {i.briefing ? (
+                  <p className="mt-1 text-[15px] text-muted"><span className="font-semibold text-ink">Still open: </span>{i.briefing.still_open}</p>
+                ) : (
+                  <p className="mt-1 text-[15px] text-muted">The AI is writing the briefing…</p>
+                )}
+                {i.briefing?.tags?.length ? (
+                  <p className="mt-1.5 text-sm text-muted">
+                    {i.briefing.tags.map((t, n) => (
+                      <span key={t}>
+                        {n > 0 && " · "}
+                        <span className={me.tags.includes(t) ? "bg-gold-tint font-semibold text-ink" : ""}>{t}</span>
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
 
         {mine.length > 0 && (
           <>
-            <h2 className="mb-2 mt-8 text-sm font-black uppercase tracking-[0.15em] text-black/50">Yours</h2>
-            <div className="space-y-2">
+            <h2 className="display mt-10 text-3xl">Yours</h2>
+            <ul className="sticker mt-4 divide-y-2 divide-line px-4">
               {mine.map((i) => (
-                <Link key={i.id} href={`/trojan/h/${i.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3.5 ring-1 ring-black/5">
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${i.status === "claimed" ? "bg-green-500" : i.status === "closed" ? "bg-gold" : "bg-black/20"}`} />
-                  <span className="min-w-0 flex-1 truncate font-semibold">{i.briefing?.title ?? i.questions?.text}</span>
-                  <span className="text-xs text-black/45">{i.status === "claimed" ? "chatting" : i.status === "closed" ? "needs approval" : "verified ✓"}</span>
-                </Link>
+                <li key={i.id}>
+                  <Link href={`/trojan/h/${i.id}`} className="group flex items-baseline gap-4 py-3">
+                    <span className="min-w-0 flex-1 truncate group-hover:text-cardinal">{i.briefing?.title ?? i.questions?.text}</span>
+                    <span className={`shrink-0 text-sm ${i.status === "closed" ? "font-semibold text-cardinal" : "text-muted"}`}>
+                      {i.status === "claimed" ? "Chatting" : i.status === "closed" ? "Needs approval" : "Verified"}
+                    </span>
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           </>
         )}
 
-        <div className="mt-10 flex items-center justify-between text-xs text-black/40">
+        <div className="mt-12 flex items-center justify-between text-sm font-semibold">
           <span>Tip: add this app to your home screen.</span>
-          <button onClick={logout} className="underline">Sign out</button>
+          <button onClick={logout} className="underline underline-offset-2 hover:text-ink">Sign out</button>
         </div>
       </div>
     </div>

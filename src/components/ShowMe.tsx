@@ -76,37 +76,42 @@ export function ShowMe({ audience, orgSlug }: { audience: Audience; orgSlug?: st
   }
 
   return (
-    <div className="rounded-2xl bg-white p-3 ring-1 ring-black/5">
-      <p className="mb-2 rounded-lg bg-gold/20 px-3 py-2 text-xs text-black/70">
-        🔒 Crop out grades, student IDs and anything personal before you share a screenshot.
-      </p>
-      {!img ? (
-        <button
-          onClick={() => fileRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            pick(e.dataTransfer.files?.[0]);
-          }}
-          className="flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/15 py-10 text-black/50 hover:border-cardinal/40 hover:text-cardinal"
-        >
-          <span className="text-3xl">🖼️</span>
-          <span className="font-bold">Drop a screenshot or tap to upload</span>
-          <span className="text-xs">myUSC, Web Registration, OASIS, Workday…</span>
-        </button>
-      ) : null}
+    <div>
       {!img && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-black/45">Or try a sample:</span>
-          <button onClick={() => sample("/demo/myusc-home.png", "Why can't I register for classes?")} className="rounded-full bg-black/5 px-3 py-1 font-semibold hover:bg-gold/40">myUSC: why can&apos;t I register?</button>
-          <button onClick={() => sample("/demo/oasis.png", "Where do I check my degree progress now?")} className="rounded-full bg-black/5 px-3 py-1 font-semibold hover:bg-gold/40">OASIS: where&apos;s my degree progress?</button>
-          <button onClick={() => sample("/demo/webreg-home.png", "How do I get to my course bin to register?")} className="rounded-full bg-black/5 px-3 py-1 font-semibold hover:bg-gold/40">Web Registration</button>
-        </div>
+        <>
+          <button
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              pick(e.dataTransfer.files?.[0]);
+            }}
+            className="group block w-full rounded-2xl border-[3px] border-dashed border-ink bg-gold-tint px-5 py-9 text-center transition-colors hover:bg-gold"
+          >
+            <span aria-hidden className="bob block text-5xl group-hover:[animation-duration:0.5s]">📸</span>
+            <span className="display mt-2 block text-2xl">Drop a screenshot here, or tap to pick one</span>
+            <span className="mt-1 block text-sm font-medium">myUSC, Web Registration, OASIS, Workday. Crop out grades, student IDs and anything personal first.</span>
+          </button>
+          <p className="mt-4 text-[15px] font-medium">
+            Or try a sample:{" "}
+            <button onClick={() => sample("/demo/myusc-home.png", "Why can't I register for classes?")} className="link">
+              myUSC, why can&apos;t I register?
+            </button>
+            {" · "}
+            <button onClick={() => sample("/demo/oasis.png", "Where do I check my degree progress now?")} className="link">
+              OASIS, where&apos;s my degree progress?
+            </button>
+            {" · "}
+            <button onClick={() => sample("/demo/webreg-home.png", "How do I get to my course bin to register?")} className="link">
+              Web Registration
+            </button>
+          </p>
+        </>
       )}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
       {img && (
-        <div className="space-y-3">
-          <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-black/10">
+        <div className="space-y-4">
+          <div className="pop relative w-full overflow-hidden rounded-2xl border-[2.5px] border-ink">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={img.url} alt="Your screenshot" className="block w-full" />
             {res?.result.steps.map((s) =>
@@ -114,7 +119,7 @@ export function ShowMe({ audience, orgSlug }: { audience: Audience; orgSlug?: st
                 <div
                   key={s.n}
                   onMouseEnter={() => setActive(s.n)}
-                  className={`absolute rounded-md border-[3px] transition ${active === null || active === s.n ? "border-cardinal bg-gold/20" : "border-cardinal/30"}`}
+                  className={`pop absolute rounded-lg border-[3px] transition-colors ${active === null || active === s.n ? "border-cardinal bg-gold/30" : "border-cardinal/30"}`}
                   style={{
                     left: `${Math.max(0, s.box.x) * 100}%`,
                     top: `${Math.max(0, s.box.y) * 100}%`,
@@ -122,47 +127,50 @@ export function ShowMe({ audience, orgSlug }: { audience: Audience; orgSlug?: st
                     height: `${Math.min(1, s.box.h) * 100}%`,
                   }}
                 >
-                  <span className="absolute -left-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-cardinal text-xs font-black text-white shadow">{s.n}</span>
+                  <span className="absolute -left-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-cardinal text-xs font-semibold tabular-nums text-white">{s.n}</span>
                 </div>
               ) : null,
             )}
           </div>
           {!res && (
-            <div className="flex gap-2">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="What are you trying to do here?"
-                className="min-w-0 flex-1 rounded-xl bg-black/5 px-3 py-2.5 outline-none"
-              />
-              <button onClick={go} disabled={busy} className="rounded-xl bg-cardinal px-5 font-black text-white disabled:opacity-50">
+            <div className="flex flex-wrap gap-2">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="What are you trying to do here?" aria-label="What are you trying to do here?" className="field flex-1" />
+              <button onClick={go} disabled={busy} data-fx="boom" className="btn btn-primary">
                 {busy ? "Looking…" : "Show me"}
               </button>
-              <button onClick={() => { setImg(null); setRes(null); }} className="px-2 text-sm text-black/45">✕</button>
+              <button onClick={() => { setImg(null); setRes(null); }} className="btn text-muted hover:text-ink">
+                Remove
+              </button>
             </div>
           )}
-          {err && <p className="text-sm text-red-700">{err}</p>}
+          {err && <p className="text-sm text-[#b42318]">{err}</p>}
           {res && (
-            <div className="space-y-3">
-              {res.result.sensitive_warning && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-800">⚠️ {res.result.sensitive_warning}</p>}
-              <p className="text-[15px]"><span className="font-bold">{res.result.answer}</span> <span className="text-black/45">({res.result.what_is_this})</span></p>
-              <ol className="space-y-1.5">
+            <div className="space-y-4">
+              {res.result.sensitive_warning && <p className="text-[15px] font-semibold text-[#b42318]">{res.result.sensitive_warning}</p>}
+              <p>
+                <span className="font-semibold">{res.result.answer}</span> <span className="text-muted">({res.result.what_is_this})</span>
+              </p>
+              <ol className="space-y-1">
                 {res.result.steps.map((s) => (
                   <li
                     key={s.n}
                     onMouseEnter={() => setActive(s.n)}
                     onMouseLeave={() => setActive(null)}
-                    className={`flex gap-3 rounded-lg p-2 ${active === s.n ? "bg-gold/20" : ""}`}
+                    className={`-mx-2 flex gap-3 rounded-md px-2 py-1.5 ${active === s.n ? "bg-gold-tint" : ""}`}
                   >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cardinal text-xs font-black text-white">{s.n}</span>
-                    <span className="text-[15px]">{s.text}</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cardinal text-xs font-semibold tabular-nums text-white">{s.n}</span>
+                    <span>{s.text}</span>
                   </li>
                 ))}
               </ol>
               {res.question_id && (
                 <HandoffBox questionId={res.question_id} audience={audience} question={q || "Screenshot question"} needsTrojan={res.result.needs_trojan} orgSlug={orgSlug} />
               )}
-              <button onClick={() => { setImg(null); setRes(null); setQ(""); }} className="text-sm text-black/50 underline">Try another screenshot</button>
+              <p>
+                <button onClick={() => { setImg(null); setRes(null); setQ(""); }} className="link text-[15px]">
+                  Try another screenshot
+                </button>
+              </p>
             </div>
           )}
         </div>

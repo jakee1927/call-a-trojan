@@ -1,15 +1,57 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AskHeader, Audience } from "@/lib/types";
 import { AnswerCard } from "./AnswerCard";
 import { ShowMe } from "./ShowMe";
 import { CallButton } from "@/voice/CallButton";
+import { boomFrom, rain, shake } from "./Fx";
 
 type Mode = "type" | "showme" | "call";
 export type Suggestion = { question: string; audience: Audience; expected_route: "ai" | "trojan" | "both" };
 
 const AUD_LABEL: Record<Audience, string> = { current: "Current", incoming: "Incoming", applicant: "Applicant" };
-const ROUTE_HINT: Record<string, string> = { ai: "USC's pages answer it", both: "Pages + a Trojan", trojan: "Only a Trojan knows" };
+const AUD_EMOJI: Record<Audience, string> = { current: "🎒", incoming: "📦", applicant: "🤞" };
+const ROUTE_HINT: Record<string, string> = { ai: "USC's pages got this", both: "Pages + a Trojan", trojan: "Only a Trojan knows" };
+const MODE_LABEL: Record<Mode, [string, string]> = { type: ["⌨️", "Type it"], showme: ["📸", "Show a screenshot"], call: ["📞", "Call"] };
+// The suggestion stickers: gold, white, cardinal, each leaning its own way.
+const STICKER = ["sticker-gold tilt-l", "tilt-r", "sticker-cardinal tilt-l"];
+const TEASERS = [
+  "How do I get D-clearance?",
+  "Is the meal plan worth it?",
+  "Which dorm is the quietest?",
+  "Where do I even park?",
+  "Can I P/NP a GE?",
+  "What's Leavey like at 2 AM?",
+];
+
+/** Types example questions into the empty ask box, one after another. */
+function useTypedTeaser(active: boolean) {
+  const [out, setOut] = useState("");
+  useEffect(() => {
+    if (!active) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let which = 0;
+    let n = 0;
+    let dir = 1;
+    let hold = 0;
+    const t = window.setInterval(() => {
+      const full = TEASERS[which];
+      if (hold > 0) return void hold--;
+      n += dir;
+      setOut(full.slice(0, n));
+      if (n >= full.length) {
+        dir = -1;
+        hold = 22;
+      } else if (n <= 0) {
+        dir = 1;
+        which = (which + 1) % TEASERS.length;
+        hold = 4;
+      }
+    }, 55);
+    return () => window.clearInterval(t);
+  }, [active]);
+  return out;
+}
 
 export function AskExperience({
   suggestions,
@@ -37,6 +79,17 @@ export function AskExperience({
   const [round, setRound] = useState(0);
   const resultRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const askBtn = useRef<HTMLButtonElement>(null);
+  const teaser = useTypedTeaser(mode === "type" && text === "" && !placeholder);
+  const fightOn = useRef(false);
+
+  function typed(v: string) {
+    setText(v);
+    // Say the words and it rains.
+    const hit = /fight\s*on/i.test(v);
+    if (hit && !fightOn.current) rain(["✌️", "✌️", "⚔️", "🏆"], 60);
+    fightOn.current = hit;
+  }
 
   async function ask(q: string, aud: Audience = audience) {
     const question = q.trim();
@@ -50,6 +103,7 @@ export function AskExperience({
     setError(null);
     setStreaming(true);
     setRound((r) => r + 1);
+    boomFrom(askBtn.current);
     setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     try {
       const res = await fetch("/api/ask", {
@@ -87,7 +141,10 @@ export function AskExperience({
         setMarkdown(buf);
       }
     } catch (e) {
-      if ((e as Error).name !== "AbortError") setError((e as Error).message);
+      if ((e as Error).name !== "AbortError") {
+        setError((e as Error).message);
+        shake();
+      }
     } finally {
       setStreaming(false);
     }
@@ -98,96 +155,107 @@ export function AskExperience({
     ask(text);
   }
 
+  const modes = (["type", "showme", "call"] as Mode[]).filter((m) => m === "type" || (m === "showme" ? flags.showme : flags.call));
+
   return (
     <div className="w-full">
-      <div className="frost rounded-3xl border border-white/60 p-3 shadow-xl shadow-cardinal/10 md:p-4">
-        <div className="flex flex-wrap items-center gap-2 px-1 pb-3">
-          <div className="flex rounded-full bg-black/5 p-1" role="tablist" aria-label="Input mode">
-            {(["type", "showme", "call"] as Mode[])
-              .filter((m) => m === "type" || (m === "showme" ? flags.showme : flags.call))
-              .map((m) => (
-                <button
-                  key={m}
-                  role="tab"
-                  aria-selected={mode === m}
-                  onClick={() => setMode(m)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${mode === m ? "bg-cardinal text-white shadow" : "text-black/60 hover:text-ink"}`}
-                >
-                  {m === "type" ? "Type" : m === "showme" ? "Show me" : "Call"}
+      <div className="sticker !shadow-[8px_8px_0_var(--ink)] p-4 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          {modes.length > 1 ? (
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="How to ask">
+              {modes.map((m) => (
+                <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={`chip ${mode === m ? "chip-on" : ""}`}>
+                  <span aria-hidden>{MODE_LABEL[m][0]}</span>
+                  {MODE_LABEL[m][1]}
                 </button>
               ))}
-          </div>
+            </div>
+          ) : (
+            <span />
+          )}
           {!lockAudience && (
-            <div className="ml-auto flex rounded-full bg-black/5 p-1" role="tablist" aria-label="Who's asking">
+            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Who is asking">
+              <span className="mr-1 text-sm font-bold text-muted">I&apos;m</span>
               {(["current", "incoming", "applicant"] as Audience[]).map((a) => (
                 <button
                   key={a}
-                  role="tab"
-                  aria-selected={audience === a}
+                  role="radio"
+                  aria-checked={audience === a}
                   onClick={() => setAudience(a)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${audience === a ? "bg-ink text-gold" : "text-black/55 hover:text-ink"}`}
+                  className={`chip !px-2.5 !py-0.5 !text-sm ${audience === a ? "!bg-gold shadow-[3px_3px_0_var(--ink)] rotate-[2deg]" : ""}`}
                 >
-                  {AUD_LABEL[a]}
+                  <span className={audience === a ? "ringing" : ""} style={{ animationIterationCount: 1 }}>{AUD_EMOJI[a]}</span> {AUD_LABEL[a]}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {mode === "type" && (
-          <form onSubmit={submit} className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-inner ring-1 ring-black/5">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={placeholder ?? "Ask anything about USC…"}
-              className="min-w-0 flex-1 bg-transparent px-3 py-3 text-lg outline-none placeholder:text-black/35"
-            />
-            <button
-              disabled={streaming || text.trim().length < 3}
-              className="rounded-xl bg-cardinal px-5 py-3 font-black text-white transition hover:bg-cardinal-dark disabled:opacity-40"
-            >
-              {streaming ? "…" : "Ask"}
-            </button>
-          </form>
-        )}
-
-        {mode === "showme" && <ShowMe audience={audience} orgSlug={orgSlug} />}
-
-        {mode === "call" && (
-          <div className="flex flex-col items-start gap-3 rounded-2xl bg-white p-4 ring-1 ring-black/5">
-            <p className="text-sm text-black/60">Talk it through. If a Trojan who matches is on shift, we ring them. Otherwise an AI Trojan stand-in answers from USC&apos;s pages.</p>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="What do you want to ask? (optional)"
-              className="w-full rounded-xl bg-black/5 px-3 py-2.5 outline-none"
-            />
-            <CallButton audience={audience} prefill={text || undefined} />
-          </div>
-        )}
-
-        {mode === "type" && (
-          <div className="mt-3 flex flex-col gap-2 px-1 md:flex-row">
-            {suggestions.map((s) => (
-              <button
-                key={s.question}
-                onClick={() => {
-                  setText(s.question);
-                  // The toggle is the student's choice; a suggestion never overrides it.
-                  ask(s.question, audience);
-                }}
-                className="group flex-1 rounded-xl border border-black/5 bg-white/70 p-3 text-left text-sm transition hover:border-cardinal/30 hover:bg-white"
-              >
-                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-cardinal/70">{ROUTE_HINT[s.expected_route]}</span>
-                <span className="line-clamp-2 font-medium text-ink/85 group-hover:text-ink">{s.question}</span>
+        <div key={mode} className="pop mt-4">
+          {mode === "type" && (
+            <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
+              <input
+                value={text}
+                onChange={(e) => typed(e.target.value)}
+                placeholder={placeholder ?? (teaser || "Ask anything about USC")}
+                aria-label="Your question"
+                className="field !rounded-2xl !px-5 !py-4 !text-xl !font-semibold"
+              />
+              <button ref={askBtn} disabled={streaming || text.trim().length < 3} className="btn btn-primary btn-lg !px-8 !py-4 !text-xl">
+                {streaming ? "Asking…" : "Ask ✌️"}
               </button>
-            ))}
-          </div>
-        )}
+            </form>
+          )}
+
+          {mode === "showme" && <ShowMe audience={audience} orgSlug={orgSlug} />}
+
+          {mode === "call" && (
+            <div className="max-w-xl space-y-3">
+              <p className="font-medium">
+                Talk it through. If a Trojan who matches is on shift, we ring them. Otherwise an AI stand-in answers from USC&apos;s pages, and says so first.
+              </p>
+              <input
+                value={text}
+                onChange={(e) => typed(e.target.value)}
+                placeholder="What do you want to ask? (optional)"
+                aria-label="What do you want to ask? (optional)"
+                className="field"
+              />
+              <CallButton audience={audience} prefill={text || undefined} />
+            </div>
+          )}
+        </div>
       </div>
 
+      {mode === "type" && suggestions.length > 0 && !asked && (
+        <div className="mt-8">
+          <p className="display mb-3 text-xl">No idea what to ask? Steal one 👇</p>
+          <ul className="grid gap-5 md:grid-cols-3">
+            {suggestions.map((s, i) => (
+              <li key={s.question} className="drop" style={{ "--i": i } as React.CSSProperties}>
+                <button
+                  onClick={() => {
+                    setText(s.question);
+                    // The toggle is the student's choice; a suggestion never overrides it.
+                    ask(s.question, audience);
+                  }}
+                  className={`sticker grab block h-full w-full p-4 text-left ${STICKER[i % STICKER.length]}`}
+                >
+                  <span className="note-tag">{ROUTE_HINT[s.expected_route]}</span>
+                  <span className="mt-2 block text-[17px] font-extrabold leading-snug">{s.question}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div ref={resultRef} className="scroll-mt-6">
-        {error && <div className="mt-6 rounded-2xl bg-red-50 p-4 text-red-800">{error}</div>}
+        {error && (
+          <p role="alert" className="sticker slam mt-6 inline-block px-4 py-3 font-bold text-[#c81e1e]">
+            😵 {error}
+          </p>
+        )}
         {asked && !error && (
           <div className="mt-8">
             <AnswerCard key={round} question={asked.q} audience={asked.audience} header={header} markdown={markdown} streaming={streaming} orgSlug={orgSlug} />

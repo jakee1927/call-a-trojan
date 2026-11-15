@@ -174,64 +174,66 @@ export default function AnswerScreen() {
   };
 
   return (
-    <main className={`flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center ${state === "incoming" ? "bg-ink text-white" : "poster-bg text-ink"}`}>
-      {state === "loading" && <p className="opacity-60">Loading…</p>}
+    <main className={`flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center ${state === "incoming" ? "bg-cardinal text-white" : "text-ink"}`}>
+      {state === "loading" && <p className="text-muted">Loading…</p>}
       {state === "signed_out" && (
         <p>
           Sign in as a Trojan first.{" "}
-          <Link href="/trojan" className="font-bold text-cardinal underline">
-            Open the Trojan app →
+          <Link href="/trojan" className="link font-semibold">
+            Open the Trojan app
           </Link>
         </p>
       )}
       {state === "arming" && (
         <>
-          <h1 className="text-3xl font-black">Take calls{me ? `, ${me.name.split(" ")[0]}` : ""}</h1>
-          {me && !me.on_shift && <p className="text-sm text-cardinal">You&apos;re off shift. Go on shift in the Trojan app so students can call you.</p>}
-          <button onClick={arm} className="rounded-full bg-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg">
+          <h1 className="display text-4xl">Take calls{me ? `, ${me.name.split(" ")[0]}` : ""}</h1>
+          {me && !me.on_shift && <p className="text-[15px] font-semibold text-cardinal">You&apos;re off shift. Go on shift in the Trojan app so students can call you.</p>}
+          <button onClick={arm} data-fx="boom" className="btn btn-go btn-lg">
             Turn on ringing
           </button>
-          <p className="max-w-xs text-sm opacity-60">Keep this page open with the screen on. Phones only ring a web page while it&apos;s in front.</p>
+          <p className="max-w-xs text-[15px] text-muted">Keep this page open with the screen on. Phones only ring a web page while it&apos;s in front.</p>
         </>
       )}
       {state === "waiting" && (
         <>
-          <span className="live-dot" style={{ width: 14, height: 14 }} />
-          <h1 className="text-2xl font-black">Waiting for calls…</h1>
-          <p className="text-sm opacity-60">On shift as {me?.name}. This page rings when a student calls.</p>
+          <h1 className="display text-3xl">
+            <span className="live-dot mr-2.5 -translate-y-0.5" />
+            Waiting for calls
+          </h1>
+          <p className="text-[15px] text-muted">On shift as {me?.name}. This page rings when a student calls.</p>
         </>
       )}
       {state === "incoming" && ring && (
         <>
-          <p className="text-sm font-bold uppercase tracking-widest text-gold">Incoming call · Call a Trojan</p>
-          <h1 className="text-4xl font-black">A {ring.audience === "applicant" ? "future" : ring.audience === "incoming" ? "incoming" : ""} Trojan needs you</h1>
-          {ring.question && <p className="max-w-sm rounded-2xl bg-white/10 px-4 py-3 text-lg">“{ring.question}”</p>}
-          <div className="mt-6 flex gap-10">
-            <button onClick={decline} className="flex h-20 w-20 items-center justify-center rounded-full bg-red-600 text-3xl shadow-lg" aria-label="Decline">
-              ✕
+          <p className="display text-2xl text-gold"><span aria-hidden className="ringing mr-2">📞</span>Incoming call</p>
+          <h1 className="display slam text-[2.6rem] leading-none">A {ring.audience === "applicant" ? "future" : ring.audience === "incoming" ? "incoming" : ""} Trojan needs you</h1>
+          {ring.question && <p className="max-w-sm text-lg text-white/85">“{ring.question}”</p>}
+          <div className="mt-4 flex w-full max-w-sm gap-3">
+            <button onClick={decline} className="btn btn-stop btn-lg flex-1">
+              Decline
             </button>
-            <button onClick={accept} className="flex h-20 w-20 animate-bounce items-center justify-center rounded-full bg-green-500 text-3xl shadow-lg" aria-label="Accept">
-              📞
+            <button onClick={accept} data-fx="rain" className="btn btn-go btn-lg flex-1" style={{ animation: "hop 0.8s ease-in-out infinite" }}>
+              Answer
             </button>
           </div>
         </>
       )}
       {(state === "connecting" || state === "connected") && (
         <>
-          <p className="text-sm font-bold uppercase tracking-widest text-cardinal">{state === "connected" ? `Connected · ${mmss(elapsed)}` : "Connecting…"}</p>
-          {ring?.question && <p className="max-w-sm rounded-2xl bg-white/70 px-4 py-3">“{ring.question}”</p>}
-          <div className="flex gap-4">
-            <button onClick={toggleMute} className={`rounded-full px-6 py-4 font-bold ${muted ? "bg-cardinal text-white" : "bg-white/80"}`}>
+          <p className="text-xl font-semibold tabular-nums">{state === "connected" ? `Connected · ${mmss(elapsed)}` : "Connecting…"}</p>
+          {ring?.question && <p className="max-w-sm text-muted">“{ring.question}”</p>}
+          <div className="flex gap-3">
+            <button onClick={toggleMute} className={`btn btn-lg ${muted ? "btn-dark" : "btn-line"}`}>
               {muted ? "Unmute" : "Mute"}
             </button>
-            <button onClick={() => hangUp()} className="rounded-full bg-red-600 px-8 py-4 font-bold text-white">
+            <button onClick={() => hangUp()} className="btn btn-stop btn-lg">
               Hang up
             </button>
           </div>
         </>
       )}
-      {state === "ended" && <p className="text-xl font-bold">Call ended</p>}
-      {err && <p className="max-w-sm text-sm font-semibold text-cardinal">{err}</p>}
+      {state === "ended" && <p className="text-xl font-semibold">Call ended</p>}
+      {err && <p className="max-w-sm text-sm font-semibold text-[#b42318]">{err}</p>}
     </main>
   );
 }

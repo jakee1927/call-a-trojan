@@ -100,47 +100,40 @@ export function Chat({
   const ended = status === "closed" || status === "approved";
 
   return (
-    <div className="flex flex-col rounded-2xl border border-black/10 bg-white">
-      <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3">
+    <div className="flex flex-col overflow-hidden rounded-2xl border-[2.5px] border-ink bg-white">
+      <div className="flex items-center gap-3 border-b-[2.5px] border-ink bg-gold px-4 py-3">
         {helper ? (
           <>
             <Avatar name={helper.name} url={helper.avatar_url} size={32} online={!ended} />
             <div className="min-w-0">
-              <div className="text-sm font-bold">
+              <div className="text-[15px] font-semibold leading-tight">
                 {as === "student" ? helper.name : "Chat with the student"}
-                {helper.is_demo && as === "student" && <span className="ml-1 text-xs font-medium text-black/40">(demo)</span>}
+                {helper.is_demo && as === "student" && <span className="ml-1.5 text-sm font-normal text-muted">(demo profile)</span>}
               </div>
-              <div className="text-xs text-black/50">
-                {as === "student" ? [helper.major, helper.year].filter(Boolean).join(" · ") || "USC student" : ended ? "Ended" : "Live"}
+              <div className="text-sm text-muted">
+                {as === "student" ? [helper.major, helper.year].filter(Boolean).join(" · ") || "USC student" : ended ? "Ended" : "In progress"}
               </div>
             </div>
           </>
         ) : (
-          <div className="text-sm">
-            <div className="font-bold">Waiting for a Trojan</div>
-            <div className="text-xs text-black/50">{promise ?? "A Trojan will reply, usually within 2 hours."} You can leave this page; bookmark it to come back.</div>
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold leading-tight">Waiting for a Trojan</div>
+            <div className="text-sm font-medium">{promise ?? "A Trojan will reply, usually within 2 hours."} You can leave this page; bookmark it to come back.</div>
           </div>
         )}
-        <span className="ml-auto flex items-center gap-1.5 text-[11px] text-black/40">
-          {live ? <span className="live-dot" /> : <span className="h-2 w-2 rounded-full bg-black/20" />}
-          {live ? "live" : "connecting"}
-        </span>
+        {!live && <span className="ml-auto shrink-0 text-sm text-muted">Connecting…</span>}
       </div>
-      <div className="max-h-[50vh] min-h-[120px] space-y-2 overflow-y-auto px-4 py-3">
-        {messages.length === 0 && <p className="py-6 text-center text-sm text-black/40">No messages yet. Add any detail that helps.</p>}
+      <div className="max-h-[50vh] min-h-[120px] space-y-2 overflow-y-auto px-4 py-4">
+        {messages.length === 0 && <p className="py-6 text-center text-[15px] text-muted">No messages yet. Add any detail that helps.</p>}
         {messages.map((m) =>
           m.sender === "system" ? (
-            <p key={m.id} className="text-center text-xs text-black/40">
+            <p key={m.id} className="py-1 text-center text-sm text-muted">
               {m.body}
             </p>
           ) : (
             <div key={m.id} className={`flex ${m.sender === as ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
-                  m.sender === as ? "rounded-br-md bg-cardinal text-white" : "rounded-bl-md bg-black/5 text-ink"
-                }`}
-              >
-                {m.sender !== as && m.sender_name && <div className="mb-0.5 text-[11px] font-bold opacity-60">{m.sender_name}</div>}
+              <div className={`pop max-w-[80%] rounded-2xl border-2 border-ink px-3.5 py-2 text-[15px] font-medium leading-snug ${m.sender === as ? "rounded-br-sm bg-cardinal text-white" : "rounded-bl-sm bg-gold-tint text-ink"}`}>
+                {m.sender !== as && m.sender_name && <div className="mb-0.5 text-[13px] font-semibold">{m.sender_name}</div>}
                 <div className="whitespace-pre-wrap">{m.body}</div>
               </div>
             </div>
@@ -149,21 +142,22 @@ export function Chat({
         <div ref={bottom} />
       </div>
       {!ended && !disabled ? (
-        <form onSubmit={send} className="flex gap-2 border-t border-black/5 p-2">
+        <form onSubmit={send} className="flex gap-3 border-t-[2.5px] border-ink p-3 pb-4">
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={as === "helper" ? "Reply as a Trojan…" : "Message the Trojan…"}
-            className="min-w-0 flex-1 rounded-full bg-black/5 px-4 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-cardinal/30"
+            placeholder={as === "helper" ? "Reply as a Trojan" : "Message the Trojan"}
+            aria-label={as === "helper" ? "Reply as a Trojan" : "Message the Trojan"}
+            className="field"
           />
-          <button disabled={sending || !text.trim()} className="rounded-full bg-cardinal px-5 font-bold text-white disabled:opacity-40">
+          <button disabled={sending || !text.trim()} className="btn btn-primary">
             Send
           </button>
         </form>
       ) : ended ? (
-        <p className="border-t border-black/5 p-3 text-center text-xs text-black/40">This chat has ended.</p>
+        <p className="border-t border-line p-3 text-center text-sm text-muted">This chat has ended.</p>
       ) : null}
-      {err && <p className="px-4 pb-3 text-xs text-red-700">{err}</p>}
+      {err && <p className="px-4 pb-3 text-sm text-[#b42318]">{err}</p>}
     </div>
   );
 }

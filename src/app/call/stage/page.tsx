@@ -22,18 +22,18 @@ export default function StagePage() {
     setOn(!off);
   }, []);
   return (
-    <main className="poster-bg flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-      <h1 className="text-3xl font-black text-ink">Stage mode {on === null ? "…" : on ? "ON" : "OFF"}</h1>
-      <p className="max-w-md text-ink/70">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-5">
+      <h1 className="display text-4xl">Stage mode is {on === null ? "…" : on ? "on" : "off"}</h1>
+      <p className="text-muted">
         {on
           ? "On this browser, Call rings the on-shift human Trojan, and the laptop mic starts muted (listen only)."
           : "Call is back to normal: a human Trojan if one is on shift, otherwise the AI stand-in."}
       </p>
-      <div className="flex gap-3">
-        <Link href="/" className="rounded-full bg-cardinal px-5 py-3 font-bold text-white">
+      <div className="flex gap-2">
+        <Link href="/" className="btn btn-primary">
           Go to the app
         </Link>
-        <Link href={on ? "/call/stage?off=1" : "/call/stage"} className="rounded-full bg-white/80 px-5 py-3 font-bold text-ink">
+        <Link href={on ? "/call/stage?off=1" : "/call/stage"} className="btn btn-line">
           Turn {on ? "off" : "on"}
         </Link>
       </div>

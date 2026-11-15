@@ -63,24 +63,13 @@ export function CallButton(props: Props): JSX.Element | null {
 
   const human = which?.mode === "human";
   const label = human ? `Call ${which.helper.name.split(" ")[0]}` : which ? "Call a Trojan" : "Call";
-  const sub = human ? "Live now" : which ? "AI stand-in on now" : null;
+  const sub = human ? "on shift now" : which ? "AI stand-in answers" : null;
 
   return (
-    <button
-      type="button"
-      onClick={go}
-      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-white shadow-sm transition ${
-        human ? "bg-green-600 hover:bg-green-700" : "bg-cardinal hover:bg-cardinal-dark"
-      }`}
-    >
-      <span aria-hidden>📞</span>
+    <button type="button" onClick={go} data-fx="boom" className={`btn btn-lg ${human ? "btn-go" : "btn-gold"}`}>
+      <span aria-hidden className="ringing">📞</span>
       {label}
-      {sub && (
-        <span className="ml-1 flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold">
-          {human && <span className="live-dot" style={{ width: 6, height: 6 }} />}
-          {sub}
-        </span>
-      )}
+      {sub && <span className="text-sm font-semibold opacity-80">· {sub}</span>}
     </button>
   );
 }

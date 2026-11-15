@@ -8,7 +8,7 @@ export function Markdown({ text, sources, streaming }: { text: string; sources: 
   const linked = text.replace(/\[(S\d+|T\d+)\](?!\()/g, (_m, r) => `[${r}](#ref-${r})`);
   const byRef = new Map(sources.map((s) => [s.ref, s]));
   return (
-    <div className={`md text-[15px] leading-relaxed ${streaming ? "caret" : ""}`}>
+    <div className={`md max-w-[68ch] text-base leading-relaxed ${streaming ? "caret" : ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -21,7 +21,7 @@ export function Markdown({ text, sources, streaming }: { text: string; sources: 
                   target="_blank"
                   rel="noreferrer"
                   title={s?.title}
-                  className="!no-underline mx-0.5 inline-flex -translate-y-0.5 items-center rounded-md bg-cardinal/10 px-1.5 py-0 align-middle text-[11px] font-bold !text-cardinal hover:bg-cardinal hover:!text-white"
+                  className="mx-0.5 inline-block rounded-md border-2 border-ink bg-gold px-1 align-[0.15em] text-[0.7em] font-extrabold leading-tight tabular-nums !text-ink !no-underline transition-transform hover:-translate-y-0.5 hover:rotate-[-8deg] hover:scale-125"
                 >
                   {href.slice(6)}
                 </a>
@@ -29,8 +29,8 @@ export function Markdown({ text, sources, streaming }: { text: string; sources: 
             }
             if (href?.startsWith("#ref-T")) {
               return (
-                <span className="mx-0.5 inline-flex -translate-y-0.5 items-center rounded-md bg-gold/40 px-1.5 align-middle text-[11px] font-bold text-ink">
-                  ✓{href.slice(6)}
+                <span className="mx-0.5 inline-block rounded-md border-2 border-ink bg-cardinal px-1 align-[0.15em] text-[0.7em] font-extrabold leading-tight tabular-nums text-white" title="From a Trojan's verified answer">
+                  ✌️{href.slice(6)}
                 </span>
               );
             }
@@ -40,9 +40,9 @@ export function Markdown({ text, sources, streaming }: { text: string; sources: 
               </a>
             );
           },
-          h1: ({ children }) => <p className="font-bold">{children}</p>,
-          h2: ({ children }) => <p className="font-bold">{children}</p>,
-          h3: ({ children }) => <p className="font-bold">{children}</p>,
+          h1: ({ children }) => <p className="font-semibold">{children}</p>,
+          h2: ({ children }) => <p className="font-semibold">{children}</p>,
+          h3: ({ children }) => <p className="font-semibold">{children}</p>,
         }}
       >
         {linked}

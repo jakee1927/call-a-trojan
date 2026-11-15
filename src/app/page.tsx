@@ -1,7 +1,8 @@
 import { AskExperience } from "@/components/AskExperience";
 import { PhoneLine } from "@/components/PhoneLine";
 import { Faces } from "@/components/Faces";
-import { Nav } from "@/components/Nav";
+import { Hero } from "@/components/Hero";
+import { Footer } from "@/components/Marquee";
 import { FLAGS } from "@/lib/flags";
 import { HOME_PICKS, homeData, pickSuggestions, typicalReply } from "@/lib/home";
 
@@ -10,24 +11,20 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const { helpers, online, medianReplyMin } = await homeData();
   return (
-    <main className="poster-bg min-h-screen pb-24">
-      <Nav active="ask" />
-      <section className="mx-auto max-w-5xl px-4 pt-6 md:pt-12">
-        <Faces helpers={helpers} online={online} typical={typicalReply(online, medianReplyMin)} />
-        <h1 className="mt-6 max-w-3xl text-[2.1rem] font-black leading-[1.02] tracking-tight md:text-6xl">
-          USC&apos;s website tells you the policy.
-          <br />
-          <span className="text-cardinal">A Trojan tells you how it actually works.</span>
-        </h1>
-        <p className="mt-4 max-w-2xl text-base text-black/60 md:text-lg">
-          Ask anything. Our AI answers from official USC pages with sources, and when that isn&apos;t enough it stops and hands you to a real Trojan
-          who&apos;s done it. <span className="font-semibold text-ink">Type it, show it, or say it.</span>
+    <main className="min-h-screen">
+      <Hero active="ask" quiet="USC's website tells you the policy." loud="A Trojan tells you how it" hot="actually" after="works.">
+        <p className="mt-5 max-w-[46ch] text-lg font-medium text-white/90 md:text-xl">
+          Ask anything. The AI answers from official USC pages. When that isn&apos;t enough, it taps out and hands you to a student who has done it.
         </p>
-        <div className="mt-8">
-          <AskExperience suggestions={pickSuggestions(HOME_PICKS, "current")} flags={{ showme: FLAGS.showme, call: FLAGS.call }} />
+      </Hero>
+      <section className="relative z-10 mx-auto -mt-20 max-w-5xl px-5">
+        <AskExperience suggestions={pickSuggestions(HOME_PICKS, "current")} flags={{ showme: FLAGS.showme, call: FLAGS.call }} />
+        <div className="mt-12 flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+          <Faces helpers={helpers} online={online} typical={typicalReply(online, medianReplyMin)} />
           <PhoneLine />
         </div>
       </section>
+      <Footer />
     </main>
   );
 }

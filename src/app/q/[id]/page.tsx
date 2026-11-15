@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnswerCard } from "@/components/AnswerCard";
 import { Nav } from "@/components/Nav";
+import { Footer } from "@/components/Marquee";
 import { SOURCES } from "@/lib/corpus";
 import { db } from "@/lib/supabase-server";
 import type { AskHeader, Audience } from "@/lib/types";
@@ -31,9 +32,9 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
     question_id: q.id,
   };
   return (
-    <main className="poster-bg min-h-screen pb-24">
+    <main className="min-h-screen">
       <Nav />
-      <section className="mx-auto max-w-5xl px-4 pt-6">
+      <section className="mx-auto max-w-5xl px-5 pt-10">
         <AnswerCard
           question={q.text}
           audience={q.audience as Audience}
@@ -43,10 +44,11 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
           initialHandoff={h ?? null}
           orgSlug={q.org_slug}
         />
-        <div className="mt-8 text-center">
-          <Link href="/" className="font-bold text-cardinal underline">Ask another question</Link>
-        </div>
+        <p className="mt-10">
+          <Link href="/" data-fx="boom" className="btn btn-dark btn-lg">Ask another question ✌️</Link>
+        </p>
       </section>
+      <Footer />
     </main>
   );
 }
