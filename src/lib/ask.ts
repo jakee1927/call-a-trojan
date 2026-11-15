@@ -33,10 +33,17 @@ student to a Trojan.
 When to search the web:
 - Don't search when the sources below already answer the question: answer straight away.
 - Search when the sources below don't cover it or only partly cover it: a specific school, major, program, course,
-  requirement, office, scholarship, housing or anything else not in the pages below. Run two to four targeted
-  searches: the program's or office's own page, USC-wide guidance that applies to this student (for example
-  first-year or transfer advising and General Education requirements), and the catalogue or schedule of classes
-  when the question is about courses.
+  requirement, office, scholarship, housing or anything else not in the pages below.
+- Questions about what a student is required to take or do have two layers, and a complete answer covers both.
+  Search for each one separately, every time:
+  1. University-wide rules for a student in their position (their year, or transfer / spring-admit status). For a
+     first-year student that means searching what USC requires of all first-years: the first-year writing
+     requirement (WRIT 150), the General Education Seminar (GESM) and General Education. Search with those words.
+  2. Their own school's or program's requirements: the program's degree page, then the catalogue or the schedule
+     of classes for the actual courses.
+  The program's own pages usually name its advising office: when the answer depends on the student's own plan,
+  close with that office's email or page so they can confirm (don't run an extra search just for it).
+- Lead with the layer that definitely applies to them (the university-wide rules), then the program layer.
 - Be concrete with what you find: name the specific courses (with codes), requirements, dates, forms and the
   advising or office contact the pages give. "Ask your advisor" alone is not an answer when the pages have specifics.
 - If the answer depends on something you don't know (their major, their entry term), give what applies to everyone
@@ -92,7 +99,7 @@ Then a blank line, then the answer in Markdown for the "USC says" lane:
 - Lead with the direct answer in one or two sentences. Then short bullets or numbered steps if useful.
 - Cite as [S1], [S2] right after the fact (the app links the refs). For a fact from a web search, link the page:
   [short page name](url). No bare URLs.
-- Keep it under about 180 words (up to about 230 when you searched and have specifics to give). No headings bigger
+- Keep it under about 180 words (up to about 260 when you searched and have specifics to give). No headings bigger
   than bold text. No sign-off.
 - Don't restate Trojan answers in this lane (the app shows them in their own lane). You may end with one sentence like
   "A Trojan can tell you how long it actually takes." when the route is "both" or "trojan".`;
@@ -287,10 +294,26 @@ const isUscUrl = (url: string) => {
 
 /** OpenAI writes web citations as "([site](url?utm_source=openai))": drop the tracking param and the extra parens. */
 export function cleanCitations(md: string): string {
-  return md
-    .replace(/([?&])utm_source=openai(&?)/g, (_m, a: string, b: string) => (a === "?" && b ? "?" : ""))
-    .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)");
+  return (
+    md
+      .replace(/([?&])utm_source=openai(&?)/g, (_m, a: string, b: string) => (a === "?" && b ? "?" : ""))
+      .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)")
+      // The model links a page by name and OpenAI then adds its own "[site.com](same page)": keep the named one.
+      .replace(
+        /(\[[^\]]+\]\(([^)\s]+)\))[ \t]*\[[\w.-]+\.[a-z]{2,}\]\(([^)\s]+)\)/gi,
+        (m, first: string, u1: string, u2: string) => (sameHost(u1, u2) ? first : m),
+      )
+  );
 }
+
+const hostOf = (u: string) => {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
+};
+const sameHost = (a: string, b: string) => hostOf(a) === hostOf(b);
 
 export const UNOFFICIAL_HEADING = "**Not from official USC pages:**";
 
@@ -336,6 +359,9 @@ function citationStream() {
         else if (c === "]" || c === ")") depth = Math.max(0, depth - 1);
         else if (depth === 0 && (c === " " || c === "\n")) cut = i + 1;
       }
+      // A link at the end of the released part may be followed by its duplicate "[site.com](url)": keep it back.
+      const tail = held.slice(0, cut).match(/(\[[^\]]+\]\([^)\s]+\)[ \t]*)+$/);
+      if (tail && tail.index !== undefined) cut = tail.index;
       if (held.length - cut > 800) cut = held.length; // unbalanced prose: never hold back more than a link's worth
       const out = cleanCitations(held.slice(0, cut));
       held = held.slice(cut);
