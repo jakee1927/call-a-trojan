@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AnswerCard } from "@/components/AnswerCard";
+import { Conversation } from "@/components/Conversation";
 import { Nav } from "@/components/Nav";
 import { SOURCES } from "@/lib/corpus";
 import { db } from "@/lib/supabase-server";
@@ -34,12 +34,11 @@ export default async function QuestionPage({ params }: { params: Promise<{ id: s
     <main className="poster-bg min-h-screen pb-24">
       <Nav />
       <section className="mx-auto max-w-5xl px-4 pt-6">
-        <AnswerCard
+        <Conversation
           question={q.text}
           audience={q.audience as Audience}
           header={header}
           markdown={q.answer_md ?? "_Still answering… refresh in a moment._"}
-          streaming={false}
           initialHandoff={h ?? null}
           orgSlug={q.org_slug}
         />

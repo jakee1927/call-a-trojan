@@ -20,7 +20,25 @@ export type AskInput = {
   mode?: "type" | "showme" | "call" | "voice";
   /** set to false for callers (voice tool) that don't want a questions row */
   persist?: boolean;
+  /** earlier turns of this conversation, oldest first, when the student is replying or following up */
+  history?: { question: string; answer: string }[];
 };
+
+/** The question as the model sees it: on a follow-up, the conversation so far comes first. */
+function userTurn(input: AskInput): string {
+  const q = input.question.trim();
+  const turns = (input.history ?? []).slice(-4);
+  if (!turns.length) return `Question: ${q}`;
+  return (
+    `<conversation_so_far>\n` +
+    turns.map((t) => `Student: ${t.question.trim().slice(0, 600)}\nYou answered: ${t.answer.trim().slice(0, 2500)}`).join("\n\n") +
+    `\n</conversation_so_far>\n\n` +
+    `The student now replies: ${q}\n\n` +
+    `(This continues the conversation: it may answer a question you asked, or ask for more. Use what you now know ` +
+    `about them, such as their major, year and entry term, to give the specific answer you couldn't give before, searching ` +
+    `again if you need to. Don't repeat what you already said. Route and cite this reply like any other answer.)`
+  );
+}
 
 // ---------- Cached block: instructions + every official page (stable across requests) ----------
 
@@ -259,7 +277,7 @@ function buildRequest(
       system: cachedSystem(),
       context: renderDynamic(input, verified, helpers),
       user:
-        `Question: ${input.question.trim()}\n\n` +
+        `${userTurn(input)}\n\n` +
         `(Voice call: after the JSON header line, answer in 2-4 short plain sentences that can be read aloud, ` +
         `still citing [S#] after official facts. No bullets, no headings. For a fact you found by searching, ` +
         `keep the specifics (course codes, dates, the contact) and link the page as usual; the link is not read out.)`,
@@ -273,7 +291,7 @@ function buildRequest(
     route,
     system: cachedSystem(), // identical bytes every request: instructions + whole corpus
     context: renderDynamic(input, verified, helpers),
-    user: `Question: ${input.question.trim()}`,
+    user: userTurn(input),
     effort: "low",
     maxTokens: 8000,
     // Live web search for anything the saved pages don't cover (ASK_WEB_SEARCH=0 turns it off).
@@ -506,7 +524,11 @@ async function createQuestion(input: AskInput): Promise<string> {
   const { data, error } = await db()
     .from("questions")
     .insert({
-      text: input.question.trim().slice(0, 2000),
+      // A follow-up is saved with the question it continues, so a Trojan who picks it up has the context.
+      text: (input.history?.length
+        ? `${input.history[0].question.trim().slice(0, 600)}\n↳ ${input.question.trim()}`
+        : input.question.trim()
+      ).slice(0, 2000),
       audience: input.audience,
       org_slug: input.orgSlug ?? null,
       asker_name: input.askerName?.slice(0, 60) ?? null,

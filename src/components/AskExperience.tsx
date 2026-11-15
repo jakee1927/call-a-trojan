@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import type { AskHeader, Audience } from "@/lib/types";
 import { AnswerCard } from "./AnswerCard";
+import { EarlierTurn, FollowUpBox, type Turn } from "./FollowUp";
 import { ShowMe } from "./ShowMe";
 import { CallButton } from "@/voice/CallButton";
 
@@ -36,26 +37,37 @@ export function AskExperience({
   const [error, setError] = useState<string | null>(null);
   const [round, setRound] = useState(0);
   const resultRef = useRef<HTMLDivElement>(null);
+  const latestRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  /** Earlier turns of this conversation (a follow-up keeps them; a new question from the top box clears them). */
+  const [thread, setThread] = useState<Turn[]>([]);
 
-  async function ask(q: string, aud: Audience = audience) {
+  async function ask(q: string, aud: Audience = audience, followUp = false) {
     const question = q.trim();
-    if (question.length < 3 || streaming) return;
+    if (question.length < (followUp ? 2 : 3) || streaming) return;
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+    const earlier: Turn[] = followUp && asked && markdown ? [...thread, { q: asked.q, header, markdown }] : [];
+    setThread(earlier);
     setAsked({ q: question, audience: aud });
     setHeader(null);
     setMarkdown("");
     setError(null);
     setStreaming(true);
     setRound((r) => r + 1);
-    setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    setTimeout(() => (followUp ? latestRef : resultRef).current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, audience: aud, org_slug: orgSlug ?? null, mode }),
+        body: JSON.stringify({
+          question,
+          audience: aud,
+          org_slug: orgSlug ?? null,
+          mode,
+          history: earlier.map((t) => ({ question: t.q, answer: t.markdown })),
+        }),
         signal: ctrl.signal,
       });
       if (!res.ok || !res.body) {
@@ -189,8 +201,14 @@ export function AskExperience({
       <div ref={resultRef} className="scroll-mt-6">
         {error && <div className="mt-6 rounded-2xl bg-red-50 p-4 text-red-800">{error}</div>}
         {asked && !error && (
-          <div className="mt-8">
-            <AnswerCard key={round} question={asked.q} audience={asked.audience} header={header} markdown={markdown} streaming={streaming} orgSlug={orgSlug} />
+          <div className="mt-8 space-y-6">
+            {thread.map((t, i) => (
+              <EarlierTurn key={i} turn={t} />
+            ))}
+            <div ref={latestRef} className="scroll-mt-6">
+              <AnswerCard key={round} question={asked.q} audience={asked.audience} header={header} markdown={markdown} streaming={streaming} orgSlug={orgSlug} />
+            </div>
+            {header && !streaming && <FollowUpBox busy={streaming} onSend={(t) => ask(t, asked.audience, true)} />}
           </div>
         )}
       </div>

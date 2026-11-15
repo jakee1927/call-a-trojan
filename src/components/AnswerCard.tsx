@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { AskHeader, Audience, MatchedHelper, UsedAnswer } from "@/lib/types";
+import { AnswerSkeleton } from "./AnswerSkeleton";
 import { Markdown, citedSources } from "./Markdown";
 import { Avatar } from "./Avatar";
 import { Chat } from "./Chat";
@@ -119,12 +120,7 @@ export function AnswerCard({
             )}
           </div>
           {!header && !markdown ? (
-            <div className="space-y-2 py-2">
-              <div className="h-3 w-11/12 animate-pulse rounded bg-black/10" />
-              <div className="h-3 w-9/12 animate-pulse rounded bg-black/10" />
-              <div className="h-3 w-10/12 animate-pulse rounded bg-black/10" />
-              <p className="pt-1 text-xs text-black/40">Reading USC&apos;s pages…</p>
-            </div>
+            <AnswerSkeleton />
           ) : (
             <Markdown text={markdown} sources={header?.sources ?? []} streaming={streaming} />
           )}
