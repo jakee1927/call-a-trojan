@@ -46,7 +46,7 @@ function HelperPick({ h }: { h: MatchedHelper }) {
       <div className="min-w-0">
         <div className="truncate font-bold">
           {h.name}
-          {h.is_demo && <span className="ml-1 text-xs font-medium opacity-60">(demo)</span>}
+          {h.is_demo && <span className="ml-1.5 rounded bg-white/15 px-1 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide opacity-80">demo profile</span>}
           <span className="ml-1.5 text-xs font-medium opacity-70">{[h.major, yy(h.year)].filter(Boolean).join(" ")}</span>
         </div>
         <div className="truncate text-sm opacity-85">{h.why}</div>

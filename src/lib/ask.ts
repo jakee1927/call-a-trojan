@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { generateText, streamText, type LlmRequest } from "./llm";
 import { PAGES, SOURCES, USG } from "./corpus";
 import { db } from "./supabase-server";
@@ -31,7 +32,17 @@ How to decide the route:
 - "ai": the official sources fully answer the question. Answer it with [S#] citations.
 - "both": the sources answer part of it (the policy, the dates, the form), but the student also needs lived know-how
   (who to email, how long it really takes, what to say, which option people pick). Answer the official part, then
-  name exactly what a Trojan can add.
+  name exactly what a Trojan can add. Use "both" in particular when:
+  - the student has to get something done by a deadline or in a time window ("before Thursday", "in time for
+    registration", "this week", "before classes start") and the pages give the steps but not how long they really
+    take, who actually responds, or what to do if it's slow;
+  - the student asks how a process works in practice (getting a permission, clearance, approval, transfer credit,
+    an override or an exception) and the pages define the policy or the form but not the real-world experience;
+  - the student describes their own situation (a transfer, a spring admit, a specific major, a deadline of theirs) and
+    the pages don't say how the rule plays out for that situation.
+  Route "ai" when the pages directly answer what the student asked, even if they mention their situation: a date or
+  deadline, a fee or amount, a definition, an eligibility rule, where a page or form lives, or how to submit a form
+  the pages spell out step by step (e.g. "I'm a spring admit, when is my deposit due?" is "ai" if a page states it).
 - "trojan": the sources don't cover it, or it's about experience, opinion or judgment (which professor, is it worth it,
   what's it actually like). Say briefly what USC's pages do and don't say, and that a Trojan will answer.
 - If the question is unrelated to USC student life, answer briefly, route "ai", confidence low.
@@ -208,6 +219,22 @@ function buildRequest(
   verified: VerifiedRow[],
   helpers: HelperRow[],
 ): LlmRequest {
+  if (input.mode === "voice") {
+    // Spoken lookups: same header + refs, but a 2-3 sentence answer, a small output cap and an optional faster model.
+    const voiceModel = process.env.OPENAI_VOICE_MODEL || undefined;
+    return {
+      route,
+      system: cachedSystem(),
+      context: renderDynamic(input, verified, helpers),
+      user:
+        `Question: ${input.question.trim()}\n\n` +
+        `(Voice call: after the JSON header line, answer in 2-3 short plain sentences that can be read aloud, ` +
+        `still citing [S#] after official facts. No bullets, no headings.)`,
+      effort: voiceModel && /terra|luna/.test(voiceModel) ? "none" : "low",
+      maxTokens: 1500,
+      openaiModel: voiceModel,
+    };
+  }
   return {
     route,
     system: cachedSystem(), // identical bytes every request: instructions + whole corpus
@@ -473,13 +500,14 @@ export async function askText(input: AskInput): Promise<AskTextResult> {
     createQuestion(input),
   ]);
   const { text } = await generateText(
-    buildRequest("ask_text", input, verified, helpers),
+    buildRequest(input.mode === "voice" ? "ask_voice" : "ask_text", input, verified, helpers),
   );
   const split = splitHeader(text + "\n");
   const header = enrich(split?.[0] ?? null, verified, helpers, questionId);
   const markdown = (split?.[1] ?? text).trim();
-  console.log(`[ask_text] ${header.route} in ${Date.now() - t0}ms`);
-  await finish(questionId, header, markdown);
+  console.log(`[ask_text:${input.mode ?? "type"}] ${header.route} in ${Date.now() - t0}ms`);
+  if (input.mode === "voice") after(() => finish(questionId, header, markdown)); // don't make the caller wait
+  else await finish(questionId, header, markdown);
   const cited = new Set(
     Array.from(markdown.matchAll(/\[S(\d+)\]/g)).map((m) => `S${m[1]}`),
   );

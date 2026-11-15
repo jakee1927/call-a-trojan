@@ -173,8 +173,8 @@ export function AskExperience({
                 key={s.question}
                 onClick={() => {
                   setText(s.question);
-                  if (!lockAudience) setAudience(s.audience);
-                  ask(s.question, lockAudience ? audience : s.audience);
+                  // The toggle is the student's choice; a suggestion never overrides it.
+                  ask(s.question, audience);
                 }}
                 className="group flex-1 rounded-xl border border-black/5 bg-white/70 p-3 text-left text-sm transition hover:border-cardinal/30 hover:bg-white"
               >
