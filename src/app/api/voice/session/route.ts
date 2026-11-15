@@ -30,7 +30,14 @@ export async function POST(req: Request) {
     audio: {
       input: {
         noise_reduction: { type: "near_field" },
-        transcription: transcribeModel ? { model: transcribeModel, language: "en", prompt: "USC, Trojan, D-clearance, OASIS, Web Registration, SMC, transfer, Viterbi, Marshall, Dornsife, Annenberg" } : null,
+        transcription: transcribeModel
+          ? {
+              model: transcribeModel,
+              language: "en",
+              // gpt-realtime-whisper rejects a prompt; the older transcribers accept vocabulary hints.
+              ...(transcribeModel === "gpt-realtime-whisper" ? {} : { prompt: "USC, Trojan, D-clearance, OASIS, Web Registration, SMC, transfer, Viterbi, Marshall, Dornsife, Annenberg" }),
+            }
+          : null,
         turn_detection:
           process.env.OPENAI_REALTIME_VAD === "server"
             ? { type: "server_vad", threshold: 0.6, prefix_padding_ms: 300, silence_duration_ms: 450 }
