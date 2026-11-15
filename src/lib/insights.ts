@@ -9,8 +9,9 @@ export async function insightsData() {
     supa.from("verified_answers").select("uses,is_sample,expires_at").limit(5000),
     supa.from("usage_log").select("route,cost_usd,cache_read_tokens,input_tokens,ms").eq("route", "ask").order("created_at", { ascending: false }).limit(500),
     supa.from("gap_reports").select("body_md,created_at,handoff_count").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    // select * so a column the voice session adds (source/direction) is picked up without a code change
-    supa.from("calls").select("*").order("started_at", { ascending: false }).limit(2000),
+    // transport: 'phone' = inbound to the public number, 'openai-webrtc' = AI call in the browser,
+    // 'twilio' / 'app' = outbound rings to a Trojan. meta (caller number) is never read here.
+    supa.from("calls").select("transport,mode,status").order("started_at", { ascending: false }).limit(2000),
   ]);
   const questions = qs ?? [];
   const handoffs = hs ?? [];
@@ -37,8 +38,8 @@ export async function insightsData() {
   const lat = (usage ?? []).map((u) => u.ms).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
   const realVerified = (vas ?? []).filter((v) => !v.is_sample);
   const calls = (cs ?? []) as CallRow[];
-  const phoneCalls = calls.filter(isPhoneCall).length;
-  const webCalls = calls.filter((c) => !isPhoneCall(c) && c.mode === "ai").length;
+  const phoneCalls = calls.filter((c) => c.transport === "phone").length;
+  const webCalls = calls.filter((c) => c.transport === "openai-webrtc").length;
   return {
     total: questions.length,
     byRoute,
@@ -61,13 +62,4 @@ export async function insightsData() {
   };
 }
 
-type CallRow = { mode?: string; transport?: string | null; source?: string | null; direction?: string | null; meta?: Record<string, unknown> | null };
-
-/** An inbound call to the public number (not a browser call, not the outbound ring to a Trojan). */
-function isPhoneCall(c: CallRow): boolean {
-  const src = c.source ?? (c.meta?.source as string | undefined);
-  const dir = c.direction ?? (c.meta?.direction as string | undefined);
-  if (src) return src === "phone";
-  if (dir) return dir === "inbound";
-  return false;
-}
+type CallRow = { transport?: string | null; mode?: string; status?: string };
