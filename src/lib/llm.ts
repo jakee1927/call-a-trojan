@@ -45,7 +45,7 @@ const ANTHROPIC_MODEL = "claude-opus-5-5";
 export function model(): string {
   return provider() === "anthropic"
     ? ANTHROPIC_MODEL
-    : process.env.OPENAI_MODEL || "gpt-6-astra";
+    : process.env.OPENAI_MODEL || "gpt-6.1-terra";
 }
 
 let oa: OpenAI | null = null;
