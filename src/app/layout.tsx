@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Bricolage_Grotesque, Libre_Franklin } from "next/font/google";
 import { Suspense } from "react";
 import JudgeStrip from "@/components/JudgeStrip";
+import { FxLayer } from "@/components/Fx";
 import "./globals.css";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"] });
+// Franklin for reading, Bricolage Grotesque (extra bold, slightly condensed) for shouting.
+const franklin = Libre_Franklin({ variable: "--font-franklin", subsets: ["latin"], display: "swap" });
+const shout = Bricolage_Grotesque({ variable: "--font-shout", subsets: ["latin"], axes: ["opsz", "wdth"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "Call a Trojan",
@@ -18,11 +21,12 @@ export const viewport: Viewport = { themeColor: "#990000", width: "device-width"
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased min-h-screen`}>
+      <body className={`${franklin.variable} ${shout.variable} antialiased min-h-screen`}>
         <Suspense fallback={null}>
           <JudgeStrip />
         </Suspense>
         {children}
+        <FxLayer />
       </body>
     </html>
   );

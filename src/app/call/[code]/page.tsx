@@ -18,14 +18,18 @@ export default async function WaitPage({ params }: { params: Promise<{ code: str
   if (isUuid(qid)) redirect(`/q/${qid}`);
 
   return (
-    <main className="mx-auto max-w-md px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold">Thanks for calling Call a Trojan</h1>
-      <p className="mt-3 text-gray-600">
-        We couldn&apos;t find a saved question for code <span className="font-mono font-semibold">{code}</span>. Ask it here and a real Trojan will reply.
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5">
+      <div className="sticker pop tilt-l p-6">
+      <h1 className="display text-3xl">Thanks for calling Call a Trojan</h1>
+      <p className="mt-3 text-muted">
+        We couldn&apos;t find a saved question for code <span className="font-semibold tabular-nums text-ink">{code}</span>. Ask it here and a real Trojan will reply.
       </p>
-      <Link href="/" className="mt-6 inline-block rounded-full bg-cardinal px-5 py-2.5 font-bold text-white">
-        Ask a question
-      </Link>
+      <p className="mt-6">
+        <Link href="/" className="btn btn-primary">
+          Ask a question ✌️
+        </Link>
+      </p>
+      </div>
     </main>
   );
 }

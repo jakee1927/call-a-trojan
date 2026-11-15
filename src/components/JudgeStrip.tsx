@@ -17,14 +17,14 @@ export default function JudgeStrip() {
   }, [params]);
   if (!show) return null;
   return (
-    <div className="sticky top-0 z-50 bg-ink text-white text-sm">
-      <div className="mx-auto max-w-5xl px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="font-bold text-gold">Judges, try it in 60 seconds:</span>
-        <span>1. Tap a suggested question and watch the two lanes.</span>
-        <span>2. Hit <b>Ask a Trojan anyway</b>.</span>
-        <span>3. Open <a className="underline" href="/trojan" target="_blank">/trojan</a> in another tab (passcode on the Devpost page) to answer it.</span>
+    <div className="sticky top-0 z-50 bg-ink text-sm text-white">
+      <div className="mx-auto flex max-w-4xl flex-wrap items-baseline gap-x-5 gap-y-1 px-5 py-2.5">
+        <span className="display text-base text-gold">Judges, try it in 60 seconds</span>
+        <span>1. Tap a suggested question and compare the two answers.</span>
+        <span>2. Hit <b className="font-semibold">Ask a Trojan anyway</b>.</span>
+        <span>3. Open <a className="underline underline-offset-2" href="/trojan" target="_blank">/trojan</a> in another tab (passcode on the Devpost page) to answer it.</span>
         <span>4. Ask a reworded version: the Trojan&apos;s answer comes back instantly.</span>
-        <button onClick={() => { try { sessionStorage.removeItem("judge"); } catch {} setShow(false); }} className="ml-auto opacity-70 hover:opacity-100">✕</button>
+        <button onClick={() => { try { sessionStorage.removeItem("judge"); } catch {} setShow(false); }} className="ml-auto text-white/75 underline underline-offset-2 hover:text-white">Hide</button>
       </div>
     </div>
   );

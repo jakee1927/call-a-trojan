@@ -13,18 +13,12 @@ export function PhoneLine({ note = "An AI Trojan picks up and connects you to a 
   if (!FLAGS.phone || !raw) return null;
   const tel = "+" + raw.replace(/\D/g, "").replace(/^(?=\d{10}$)/, "1");
   return (
-    <a
-      href={`tel:${tel}`}
-      className="group mt-4 flex w-full items-center gap-3 rounded-2xl border border-cardinal/15 bg-white/80 px-4 py-3 shadow-sm transition hover:border-cardinal/40 hover:bg-white md:w-auto md:inline-flex"
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cardinal text-lg text-white shadow-md shadow-cardinal/30" aria-hidden>
-        ☎
-      </span>
-      <span className="min-w-0">
-        <span className="block text-lg font-black leading-tight text-ink">
-          Or just call <span className="whitespace-nowrap text-cardinal underline decoration-cardinal/30 underline-offset-4 group-hover:decoration-cardinal">{formatPhone(raw)}</span>
-        </span>
-        <span className="block text-xs text-black/55">{note}</span>
+    <a href={`tel:${tel}`} data-fx="boom" className="sticker sticker-cardinal grab tilt-l inline-flex items-center gap-3 px-4 py-3">
+      <span aria-hidden className="ringing text-4xl">📞</span>
+      <span className="leading-tight">
+        <span className="block text-sm font-extrabold text-gold">Or just call</span>
+        <span className="display block whitespace-nowrap text-[1.7rem] text-white">{formatPhone(raw)}</span>
+        <span className="block max-w-[30ch] text-sm text-white/85">{note}</span>
       </span>
     </a>
   );
