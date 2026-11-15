@@ -59,7 +59,7 @@ export function voiceAccessToken(env: TwilioEnv, identity: string, ttlSeconds = 
   return `${data}.${sig}`;
 }
 
-async function rest(env: TwilioEnv, path: string, form?: Record<string, string>) {
+export async function rest(env: TwilioEnv, path: string, form?: Record<string, string>) {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${env.accountSid}${path}`;
   const auth = Buffer.from(`${env.keySid}:${env.keySecret}`).toString("base64");
   const res = await fetch(url, {

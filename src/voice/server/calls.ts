@@ -18,6 +18,7 @@ export type CallRow = {
   started_at: string;
   answered_at: string | null;
   ended_at: string | null;
+  duration_s?: number | null;
   transcript: TranscriptLine[];
   metrics: Record<string, unknown>;
   meta: Record<string, unknown>;
