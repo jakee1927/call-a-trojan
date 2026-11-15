@@ -26,8 +26,8 @@ export type AskInput = {
 
 const INSTRUCTIONS = `You are the answer engine of "Call a Trojan", a USC (University of Southern California) help desk.
 USC's websites say what the policy is. Real Trojans (USC student helpers) know how it actually works. Your job:
-answer from the official USC pages below. When they don't cover the question, search USC's live websites (the web
-search tool, when you have it) and answer from what you find. When neither is enough, say so plainly and hand the
+answer from the official USC pages below. When they don't cover the question, search the web (the web search tool,
+when you have it), official usc.edu pages first, and answer from what you find. When neither is enough, say so plainly and hand the
 student to a Trojan.
 
 When to search the web:
@@ -41,11 +41,15 @@ When to search the web:
   advising or office contact the pages give. "Ask your advisor" alone is not an answer when the pages have specifics.
 - If the answer depends on something you don't know (their major, their entry term), give what applies to everyone
   in their situation first, then say what it depends on.
-- A fact from a page you found by searching counts as official only if the page is on a usc.edu site.
+- Look on usc.edu sites first. You may also use the rest of the web (news, rankings, student forums, other schools,
+  landlords, anything relevant) when USC's own sites don't have it or the question is about something outside USC.
+- A fact counts as official only if its page is on a usc.edu site. When a fact comes from anywhere else, say so in
+  the sentence ("according to US News...", "students on Reddit say...") and link the page. Never present it as USC
+  policy. The app lists every non-USC page you link at the bottom of the answer.
 
 How to decide the route:
-- "ai": the official sources (the pages below, or usc.edu pages you found by searching) fully answer the question.
-  Answer it with citations.
+- "ai": the sources (the pages below, or pages you found by searching) fully answer the question. Answer it with
+  citations. If the answer rests mostly on non-USC pages and it's about how things work at USC, use "both".
 - "both": the sources answer part of it (the policy, the dates, the form), but the student also needs lived know-how
   (who to email, how long it really takes, what to say, which option people pick). Answer the official part, then
   name exactly what a Trojan can add. Use "both" in particular when:
@@ -68,9 +72,9 @@ How to decide the route:
 Confidence is 0 to 1: how sure you are the official sources answer the question correctly and completely.
 
 Hard rules:
-- Every official fact carries a citation: [S#] for a source below, or a Markdown link to the usc.edu page you found
-  it on, written as [short page name](url). Never invent policies, dates, deadlines, fees, emails or phone numbers.
-  If it isn't in the sources and you can't find it on USC's sites, say you don't see it in USC's pages.
+- Every fact carries a citation: [S#] for a source below, or a Markdown link to the page you found it on, written as
+  [short page name](url). Never invent policies, dates, deadlines, fees, emails or phone numbers. If it isn't in the
+  sources and you can't find it by searching, say you couldn't find it.
 - Verified Trojan answers ([T#], given after the sources) are lived experience, never official policy. A Trojan answer
   never overrides an official fact; if they conflict, the official source wins and you say so.
 - Only list a [T#] in used_answers if it genuinely answers this question (paraphrases count; different topics don't).
@@ -255,7 +259,7 @@ function buildRequest(
       effort: voiceModel && /terra|luna/.test(voiceModel) ? "none" : "low",
       maxTokens: 2500,
       openaiModel: voiceModel,
-      webSearch: process.env.ASK_WEB_SEARCH === "0" ? undefined : { domains: ["usc.edu"] },
+      webSearch: process.env.ASK_WEB_SEARCH === "0" ? undefined : {},
     };
   }
   return {
@@ -265,8 +269,8 @@ function buildRequest(
     user: `Question: ${input.question.trim()}`,
     effort: "low",
     maxTokens: 8000,
-    // Live search of USC's own sites for anything the saved pages don't cover (ASK_WEB_SEARCH=0 turns it off).
-    webSearch: process.env.ASK_WEB_SEARCH === "0" ? undefined : { domains: ["usc.edu"] },
+    // Live web search for anything the saved pages don't cover (ASK_WEB_SEARCH=0 turns it off).
+    webSearch: process.env.ASK_WEB_SEARCH === "0" ? undefined : {},
   };
 }
 
@@ -281,19 +285,38 @@ const isUscUrl = (url: string) => {
   }
 };
 
-/**
- * OpenAI writes web citations as "([site](url?utm_source=openai))": drop the tracking param and the extra parens.
- * Also enforces the "official USC pages only" promise: a link to any host outside usc.edu is removed
- * (its words stay, the link doesn't), and so is a bare non-USC URL.
- */
+/** OpenAI writes web citations as "([site](url?utm_source=openai))": drop the tracking param and the extra parens. */
 export function cleanCitations(md: string): string {
   return md
     .replace(/([?&])utm_source=openai(&?)/g, (_m, a: string, b: string) => (a === "?" && b ? "?" : ""))
-    .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (m, text: string, url: string) =>
-      isUscUrl(url) ? m : /^[\w.-]+\.[a-z]{2,}$/i.test(text) ? "" : text,
-    )
-    .replace(/(?<!\]\()https?:\/\/[^\s)\]]+/g, (url) => (isUscUrl(url) ? url : ""));
+    .replace(/\(\[([^\]]+)\]\(([^)\s]+)\)\)/g, "[$1]($2)");
+}
+
+export const UNOFFICIAL_HEADING = "**Not from official USC pages:**";
+
+/** Every page the answer links (or names by bare URL) that is not on a usc.edu site. */
+export function unofficialSources(md: string): { title: string; url: string }[] {
+  const body = md.split(UNOFFICIAL_HEADING)[0];
+  const out: { title: string; url: string }[] = [];
+  const add = (url: string, text?: string) => {
+    if (isUscUrl(url) || out.some((x) => x.url === url)) return;
+    let host = url;
+    try {
+      host = new URL(url).hostname.replace(/^www\./, "");
+    } catch {}
+    const t = (text ?? "").trim();
+    out.push({ title: !t || /^[\w.-]+\.[a-z]{2,}$/i.test(t) ? host : `${t} (${host})`, url });
+  };
+  for (const m of body.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)) add(m[2], m[1]);
+  for (const m of body.matchAll(/(?<!\]\()https?:\/\/[^\s)\]]+/g)) add(m[0].replace(/[.,;]+$/, ""));
+  return out;
+}
+
+/** The flag shown under an answer that used anything outside USC's own sites ("" when everything is usc.edu). */
+export function unofficialFooter(md: string): string {
+  const list = unofficialSources(md);
+  if (!list.length) return "";
+  return `\n\n---\n${UNOFFICIAL_HEADING} ${list.map((x) => `[${x.title.replace(/[\[\]]/g, "")}](${x.url})`).join(" · ")}`;
 }
 
 /**
@@ -542,12 +565,14 @@ export function streamAsk(input: AskInput): ReadableStream<Uint8Array> {
           }
         }
         emit(cites.flush());
+        if (header) emit(unofficialFooter(markdown)); // flag anything that isn't from usc.edu, with its citation
         const { refused } = await stream.done();
         if (!header) {
           // Stream ended before a header was found.
           const split = splitHeader(buf + "\n");
           header = enrich(split?.[0] ?? null, verified, helpers, questionId);
           markdown = cleanCitations(split?.[1] ?? buf);
+          markdown += unofficialFooter(markdown);
           controller.enqueue(
             enc.encode(JSON.stringify(header) + "\n" + markdown),
           );
@@ -590,7 +615,8 @@ export async function askText(input: AskInput): Promise<AskTextResult> {
   );
   const split = splitHeader(text + "\n");
   const header = enrich(split?.[0] ?? null, verified, helpers, questionId);
-  const markdown = cleanCitations((split?.[1] ?? text).trim());
+  const cleaned = cleanCitations((split?.[1] ?? text).trim());
+  const markdown = cleaned + unofficialFooter(cleaned);
   console.log(`[ask_text:${input.mode ?? "type"}] ${header.route} in ${Date.now() - t0}ms`);
   if (input.mode === "voice") after(() => finish(questionId, header, markdown)); // don't make the caller wait
   else await finish(questionId, header, markdown);

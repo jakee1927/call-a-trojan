@@ -1,5 +1,5 @@
 import "server-only";
-import { askText } from "@/lib/ask";
+import { askText, UNOFFICIAL_HEADING, unofficialSources } from "@/lib/ask";
 import { siteUrl } from "@/lib/notify";
 import { db } from "@/lib/supabase-server";
 import type { Audience } from "@/lib/types";
@@ -27,7 +27,7 @@ const AUDIENCE_WORDS: Record<Audience, string> = {
 
 type WebResult = { answer: string; sources: { title: string; url: string }[]; ms: number } | null;
 
-/** Fallback web search (OpenAI Responses API, hosted web_search tool), limited to usc.edu. */
+/** Fallback web search (OpenAI Responses API, hosted web_search tool), used only when the main engine fails. */
 export async function webSearchUsc(question: string, audience: Audience): Promise<WebResult> {
   const key = process.env.OPENAI_API_KEY;
   if (!key || process.env.VOICE_WEB_SEARCH === "0") return null;
@@ -41,11 +41,11 @@ export async function webSearchUsc(question: string, audience: Audience): Promis
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: process.env.VOICE_WEB_MODEL || "gpt-6-luna",
-        tools: [{ type: "web_search", filters: { allowed_domains: ["usc.edu"] } }], // official USC sites only
+        tools: [{ type: "web_search" }],
         reasoning: { effort: "low" },
         max_output_tokens: 2000,
         instructions:
-          "You research questions for Call a Trojan, a USC help line. Search official usc.edu pages (schools, departments, Registrar, catalogue, admissions, advising). " +
+          "You research questions for Call a Trojan, a USC help line. Search the web, official usc.edu pages first (schools, departments, Registrar, catalogue, admissions, advising). If a fact comes from anywhere other than a usc.edu page, say so in the sentence. " +
           "Run two or three targeted searches: the program's or office's own page, plus USC-wide guidance that applies to this person (first-year or transfer advising, General Education). " +
           "Be concrete: name the specific courses with their codes, requirements, dates and the advising or office contact the pages give. If it depends on something you don't know (their major, entry term), give what applies to everyone in their situation, then say what it depends on. " +
           "Reply in 2-4 plain sentences meant to be read aloud: no URLs, no markdown, no lists. Say which page the facts come from in words. If you can't find it, say so plainly.",
@@ -99,13 +99,19 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
       }));
     }
     if (r.question_id) await mergeMeta(callId, { last_question_id: r.question_id });
+    // The written answer ends with a "not from official USC pages" list; on a call the AI says it instead.
+    const unofficial = unofficialSources(r.answer_markdown);
+    const body = r.answer_markdown.split(UNOFFICIAL_HEADING)[0].replace(/\n+---\s*$/, "").trim();
     // Pages the answer linked from its web search, shown as sources next to the saved-page ones.
     const seen = new Set<string>();
-    const webSources = Array.from(r.answer_markdown.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g))
+    const webSources = Array.from(body.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g))
       .map((m) => ({ title: m[1], url: m[2] }))
       .filter((x) => !seen.has(x.url) && seen.add(x.url))
       .slice(0, 4)
-      .map((x, i) => ({ ref: `W${i + 1}`, title: x.title, url: x.url }));
+      .map((x, i) => {
+        const off = unofficial.find((u) => u.url === x.url);
+        return { ref: `W${i + 1}`, title: off ? `${off.title} · not an official USC page` : x.title, url: x.url };
+      });
     return {
       ms: Date.now() - t0,
       question_id: r.question_id ?? null,
@@ -114,13 +120,17 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
       output: {
         route: r.route,
         confidence: r.confidence,
-        official_answer: spoken(r.answer_markdown),
-        official_sources: [...r.sources.map((s) => s.title), ...webSources.map((s) => s.title)],
+        answer: spoken(body),
+        sources: [...r.sources.map((s) => s.title), ...webSources.map((s) => s.title)],
+        not_official_usc: unofficial.map((u) => u.title),
         trojan_answers: trojan,
         note:
-          r.route === "ai"
-            ? "Paraphrase the official answer in 1-3 spoken sentences. Keep its specifics (course codes, dates, contacts)."
-            : "Give the official part briefly, keeping its specifics, then offer to connect them with a real Trojan.",
+          (r.route === "ai"
+            ? "Paraphrase the answer in 1-3 spoken sentences. Keep its specifics (course codes, dates, contacts)."
+            : "Give the answer briefly, keeping its specifics, then offer to connect them with a real Trojan.") +
+          (unofficial.length
+            ? ` Part of this is NOT from an official USC page (${unofficial.map((u) => u.title).join("; ")}). When you say that part, say where it's from, e.g. "that's from Reddit, not an official USC page".`
+            : ""),
         question_id: r.question_id ?? null,
       },
     };
@@ -133,7 +143,11 @@ export async function lookupUsc(callId: string, rawQuestion: unknown, audience: 
         ms: Date.now() - t0,
         question_id: null,
         sources: web.sources.map((s, i) => ({ ref: `W${i + 1}`, title: s.title, url: s.url })),
-        output: { official_answer: web.answer, official_sources: web.sources.map((s) => s.title), note: "Paraphrase this in 1-3 spoken sentences." },
+        output: {
+          answer: web.answer,
+          sources: web.sources.map((s) => s.title),
+          note: "Paraphrase this in 1-3 spoken sentences. If a fact isn't from a usc.edu page, say where it's from.",
+        },
       };
     }
     return {
